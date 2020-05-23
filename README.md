@@ -4,6 +4,8 @@ Automatic audio transcription from .wav to MIDI
 
 ## To get started:
 
+Download the data at: LINK TBD
+
 run `python main.py`
 
 ## File structure
