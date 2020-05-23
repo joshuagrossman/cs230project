@@ -1,0 +1,6 @@
+numerical*.txt
+Test-*
+Train-*
+WTC*
+results_from_friday*
+.ipynb*
