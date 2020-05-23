@@ -6,7 +6,7 @@ Automatic audio transcription from .wav to MIDI
 
 Download the data at: LINK TBD
 
-run `python main.py`
+run `python main.py` from the same directory to which you downloaded the data.
 
 ## File structure
 
