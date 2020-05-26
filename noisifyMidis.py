@@ -6,8 +6,10 @@ import pretty_midi
 from scipy.signal import butter, lfilter, filtfilt, freqz
 import constants
 import os
+import pdb
 
 def noisifyMidi(midiPath):
+    pdb.set_trace()
     midi_data = pretty_midi.PrettyMIDI(midiPath)
     for instrument in midi_data.instruments:
         for note in instrument.notes:
@@ -58,18 +60,18 @@ if __name__ == '__main__':
         for midiFilename in os.listdir(constants.WTC1_MIDI_DIR):
             midiFilenamePath = os.path.join(constants.WTC1_MIDI_DIR, midiFilename)
             noisifyMidi(midiFilenamePath)
-            print midiFilename
+            print(midiFilename)
         for midiFilename in os.listdir(constants.WTC2_MIDI_DIR):
             midiFilenamePath = os.path.join(constants.WTC2_MIDI_DIR, midiFilename)
             noisifyMidi(midiFilenamePath)
-            print midiFilename
+            print(midiFilename)
     else:
         for wavFilename in os.listdir(constants.WTC1_WAV_DIR):
             wavFilenamePath = os.path.join(constants.WTC1_WAV_DIR, wavFilename)
             noisifyWav(wavFilenamePath)
-            print wavFilename
+            print(wavFilename)
 
         for wavFilename in os.listdir(constants.WTC2_WAV_DIR):
             wavFilenamePath = os.path.join(constants.WTC2_WAV_DIR, wavFilename)
             noisifyWav(wavFilenamePath)
-            print wavFilename
+            print(wavFilename)

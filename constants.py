@@ -7,43 +7,38 @@ import re
 Directories
 """
 HOME = os.path.expanduser("~").replace("\\", "/")
-ROOT_DIR = HOME + "/Documents/221-machine-music-transcription"
 
-# ROOT_DIR = HOME + "/Documents/Coterm I/CS221/221-machine-music-transcription"
+#WTC1_WAV_DIR = "/WTC1-WAV"
+#WTC2_WAV_DIR = "/WTC2-WAV"
 
-# ROOT_DIR = HOME + "/221-machine-music-transcription"
-
-WTC1_WAV_DIR = ROOT_DIR + "/WTC1-WAV"
-WTC2_WAV_DIR = ROOT_DIR + "/WTC2-WAV"
-
-WTC1_MIDI_DIR = ROOT_DIR + "/WTC1-MIDI"
-WTC2_MIDI_DIR = ROOT_DIR + "/WTC2-MIDI"
+WTC1_MIDI_DIR = "/WTC1-MIDI"
+WTC2_MIDI_DIR = "/WTC2-MIDI"
 
 # CQT heatmap slices for CNN training
-TRAIN_CQT_CNN_SLICES_IN_DIR = ROOT_DIR + "/Train-CQT-CNN-Slices-In"
+TRAIN_CQT_CNN_SLICES_IN_DIR = "Train-CQT-CNN-Slices-In"
 
 # Time series text data for full-WAV CQT
-TRAIN_TIME_SERIES_IN_DIR = ROOT_DIR + "/Train-Time-Series-In"
+TRAIN_TIME_SERIES_IN_DIR = "Train-Time-Series-In"
 
 # CNN output on training data, if needed
-TRAIN_PIANOROLL_OUT_DIR = ROOT_DIR + "/Train-Pianoroll-Out"
+TRAIN_PIANOROLL_OUT_DIR = "Train-Pianoroll-Out"
 
 # CNN output on test data
-TEST_PIANOROLL_OUT_DIR = ROOT_DIR + "/Test-Pianoroll-Out"
+TEST_PIANOROLL_OUT_DIR = "Test-Pianoroll-Out"
 
 # What the CNN output is supposed to be
-TEST_PIANOROLL_GOLDEN_DIR = ROOT_DIR + "/Test-Pianoroll-Golden"
+TEST_PIANOROLL_GOLDEN_DIR = "Test-Pianoroll-Golden"
 
 # CNN output, converted to MIDI for human listening
-TEST_MIDI_OUT_DIR = ROOT_DIR + "/Test-MIDI-Out"
+TEST_MIDI_OUT_DIR = "Test-MIDI-Out"
 
 # CQT heatmap slices for CNN
-TEST_CQT_CNN_SLICES_IN_DIR = ROOT_DIR + "/Test-CQT-CNN-Slices-In"
+TEST_CQT_CNN_SLICES_IN_DIR = "Test-CQT-CNN-Slices-In"
 
 # Time series text data for full-WAV CQT
-TEST_TIME_SERIES_IN_DIR = ROOT_DIR + "/Test-Time-Series-In"
+TEST_TIME_SERIES_IN_DIR = "Test-Time-Series-In"
 
-MODEL_CKPT_DIR = ROOT_DIR + "/Models"
+MODEL_CKPT_DIR = "Models"
 
 """
 File name templates
@@ -60,7 +55,7 @@ PIANOROLL_NAME_TEMPLATE = "%s_Pianoroll_(%s).csv"
 # E.g., Fugue_No._1.mid
 MIDI_OUT_NAME_TEMPLATE = "%s.mid"
 
-RESULTS_PATH = ROOT_DIR + "/numericalResults%s.txt"
+RESULTS_PATH = "/numericalResults%s.txt"
 
 """
 Numerical file parameters
@@ -94,8 +89,11 @@ EPOCHS = 100
 NUM_PIECES_TO_TEST = 4
 TEST_PERCENTAGE = 0.2
 
-CHECKPOINT_EPOCH = 80
-CHECKPOINT_VAL_LOSS = 0.49
+# CHECKPOINT_EPOCH = 80
+# CHECKPOINT_VAL_LOSS = 0.49
+
+CHECKPOINT_EPOCH = 100
+CHECKPOINT_VAL_LOSS = 0.17
 
 """
 File conversion parameters

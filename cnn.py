@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import pretty_midi
 import constants
 import csv
+import pdb
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
@@ -40,9 +41,9 @@ def train_model(x_train, y_train, x_test, y_test):
     Inspired by https://github.com/chaumifan/DSL_Final
     """
 
-    print 'Creating CNN model\n'
+    print('Creating CNN model\n')
     model = create_model()
-    print 'Compiling CNN model\n'
+    print('Compiling CNN model\n')
     adam = Adam(lr=0.01)
     model.compile(loss='binary_crossentropy', optimizer=adam, metrics=['accuracy'])
     history = AccuracyHistory()
@@ -61,10 +62,10 @@ def train_model(x_train, y_train, x_test, y_test):
 
     score = model.evaluate(x_test, y_test, verbose=0)
 
-    print 'Train loss: ', score[0]
-    print 'Train accuracy: ', score[1]
+    print('Train loss: ', score[0])
+    print('Train accuracy: ', score[1])
 
-    print history.acc
+    print(history.acc)
 
     plt.plot(range(1,101), history.acc)
     plt.xlabel('Epoch')
@@ -131,9 +132,10 @@ def run_cnn(cqt_slice_paths, piano_roll_slice_paths):
     Extracts CNN inputs and then runs training
     """
 
-    print 'Reading in CQT slices and piano roll slices\n'
-    # print cqt_slice_paths, piano_roll_slice_paths
-    cqt_slices = np.array([np.expand_dims(np.genfromtxt(cqt_slice_path), 3) for cqt_slice_path in cqt_slice_paths])
+    print('Reading in CQT slices and piano roll slices\n')
+    # print(cqt_slice_paths, piano_roll_slice_paths)
+
+    cqt_slices = np.array([np.expand_dims(np.genfromtxt(cqt_slice_path), 2) for cqt_slice_path in cqt_slice_paths])
 
     piano_roll_slices = np.array([np.genfromtxt(piano_roll_slice_path) for piano_roll_slice_path in piano_roll_slice_paths]).astype(int)
     x_train, x_test, y_train, y_test = train_test_split(cqt_slices, piano_roll_slices, test_size=constants.TEST_PERCENTAGE)
@@ -154,7 +156,7 @@ def run_cnn(cqt_slice_paths, piano_roll_slice_paths):
 
 
 def restore_model(epoch, val_loss):
-    checkpoint_path = constants.ROOT_DIR + "/Models/"    
+    checkpoint_path = "Models/"    
     model = create_model()
     file = checkpoint_path + 'ckpt.h5weights.%d-%.2f.hdf5' % (epoch, val_loss)
     model.load_weights(file)
@@ -167,7 +169,7 @@ def make_predictions(cqt_data, midiFilename):
     """
     
     model = restore_model(constants.CHECKPOINT_EPOCH, constants.CHECKPOINT_VAL_LOSS)
-    print "CNN model restored."
+    print("CNN model restored.")
     cqt_array = np.array(cqt_data)
 
     predictions = None
@@ -183,7 +185,7 @@ def make_predictions(cqt_data, midiFilename):
             predictions = result.T
         else:
             predictions = np.hstack((predictions, result.T))
-    print "Pianoroll predictions made."
+    print("Pianoroll predictions made.")
 
     outPianorollPath = os.path.join(constants.TEST_PIANOROLL_OUT_DIR, midiFilename).replace("\\", "/")
     np.savetxt(outPianorollPath, predictions, fmt='%i', delimiter='\t')

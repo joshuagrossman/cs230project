@@ -5,6 +5,7 @@ import librosa.display
 import matplotlib.pyplot as plt
 import math
 import constants
+import pdb
 
 def onsetDetection(C):
     # Base onset detection on onset detection with top two octaves=top 60 bins (n_bins=60*6, bins_per_octave=12*4)
@@ -54,7 +55,7 @@ def convert(csvPath, cqtSliceDir, pieceID):
 
     onsets = onsetDetection(C)
 
-    print str(len(onsets)) + " onsets found for " + pieceID + "."
+    print(str(len(onsets)) + " onsets found for " + pieceID + ".")
 
     for i, onset in enumerate(onsets):
         if onset:
