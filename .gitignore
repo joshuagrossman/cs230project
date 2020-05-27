@@ -4,3 +4,13 @@ Train-*
 WTC*
 results_from_friday*
 .ipynb*
+Models
+__pycache__
+sample-cqt-dir
+sample-midi-dir
+sample-pianoroll-dir
+sample-time-dir
+sample-wav-dir
+star-wars-test
+star-wars.tsv
+test_loss.png

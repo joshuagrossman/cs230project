@@ -135,8 +135,6 @@ def run_cnn(cqt_slice_paths, piano_roll_slice_paths):
     print('Reading in CQT slices and piano roll slices\n')
     # print(cqt_slice_paths, piano_roll_slice_paths)
     
-    pdb.set_trace()
-    
     cqt_slices = np.array([np.expand_dims(np.genfromtxt(cqt_slice_path), 2) for cqt_slice_path in cqt_slice_paths])
 
     piano_roll_slices = np.array([np.genfromtxt(piano_roll_slice_path) for piano_roll_slice_path in piano_roll_slice_paths]).astype(int)
