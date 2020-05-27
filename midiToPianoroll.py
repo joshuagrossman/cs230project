@@ -21,6 +21,7 @@ def get_ground_truth_labels_at_time(piano_roll, time):
     Takes in a piano roll (created with 1000Hz sampling rate) representation of a MIDI 
     and a time in milliseconds and returns a (88, 1) vector of ground truth labels.
     """
+    # NOTE: The result is a vector of 1s and 0s
     if time >= len(piano_roll[0]):
         return False
     return piano_roll[:,time]
@@ -44,6 +45,7 @@ def format_piano_roll_for_midi(piano_roll_path):
     Takes in path to piano roll csv and reads csv into numpy array. Adds 19 rows pertaining 
     to the highest values and 21 rows pertaining to the lowest values to the piano roll.
     """
+    # NOTE: This is used to prepare a pianoroll matrix for conversion back into a midi, for listening.
     small_piano_roll = np.genfromtxt(piano_roll_path, delimiter='\t')
     piano_roll_length = small_piano_roll.shape[1]
     piano_roll = np.insert(small_piano_roll, 0, np.zeros((19,piano_roll_length)), axis=0)

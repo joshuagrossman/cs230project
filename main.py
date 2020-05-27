@@ -16,6 +16,9 @@ import pdb
 import evaluateTestPianoroll
 
 def train():
+    # NOTE: All of this commented-out stuff is used to prepare the data that is ultimately
+    # NOTE: used for input to the model. We will probably need to use something like it eventually.
+
     # # Do the same conversion for each file in WTC1
     # # fileSearchKeys = [(constants.PRELUDE_WAV_NAME_TEMPLATE % x) for x in range(1, 25)] + \
     # #                  [(constants.FUGUE_WAV_NAME_TEMPLATE % x) for x in range(1, 25)]
@@ -106,6 +109,7 @@ def test():
     
     fileSearchKeys = [(constants.PRELUDE_WAV_NAME_TEMPLATE % str(x)) for x in range(3, 25)]
 
+    # NOTE: Similar to the commented-out code above, this section of the code only needs to run successfully once.
 #     # Convert all wav to time series if time series don't exist
 #     for wavFilename in os.listdir(constants.WTC2_WAV_DIR):
 #         pieceID = os.path.basename(wavFilename)[:-4]
@@ -121,6 +125,8 @@ def test():
     # cqtSlicePaths = []
     
     # Convert all time series to CQT slices
+    # NOTE: These CQT slices are then transcribed individually using the model and then
+    # NOTE: pieced together into the full pianoroll CSV file.
     for csvPath in os.listdir(constants.TEST_TIME_SERIES_IN_DIR):
         csvPath = os.path.join(constants.TEST_TIME_SERIES_IN_DIR, csvPath).replace("\\", "/")
         pieceID = os.path.basename(csvPath)[:-4]
@@ -169,15 +175,14 @@ def test():
     # TODO: make sure each file corresponds to a complete output piano roll
     resultsFilename = constants.RESULTS_PATH % time.strftime("%Y%m%d-%H%M%S")
     with open(resultsFilename, "w") as resultsFile:
+        # NOTE: Calculate overall accuracy by averaging across the results for the different full pieces.
         avgPrecision = 0.0
         avgRecall = 0.0
         denominator = 0
         for outputPianorollPathFilename in os.listdir(constants.TEST_PIANOROLL_OUT_DIR):
             outputPianorollPath = os.path.join(constants.TEST_PIANOROLL_OUT_DIR, outputPianorollPathFilename).replace("\\", "/").replace("(", "").replace(")", "")
             goldenPianorollPath = os.path.join(constants.TEST_PIANOROLL_GOLDEN_DIR, outputPianorollPathFilename).replace("\\", "/").replace("(", "").replace(")", "")
-            # pianorollFilename = (constants.PIANOROLL_NAME_TEMPLATE % (pieceID, "")).replace("(", "").replace(")", "")
-            # outputPianorollPath = os.path.join(constants.TEST_PIANOROLL_OUT_DIR, pianorollFilename).replace("\\", "/")
-            # goldenPianorollPath = os.path.join(constants.TEST_PIANOROLL_GOLDEN_DIR, pianorollFilename).replace("\\", "/")
+
             precision, recall = evaluateTestPianoroll.evaluate(outputPianorollPath, goldenPianorollPath)
             avgPrecision += precision
             avgRecall += recall
@@ -185,7 +190,6 @@ def test():
             resultsFile.write(outputPianorollPath + ":" + "\n")
             resultsFile.write("\tPrecision: " + str(precision) + "\n")
             resultsFile.write("\tRecall: " + str(recall) + "\n")
-            # resultsFile.write("Listen shortly at " + os.path.join(constants.TEST_MIDI_OUT_DIR, constants.MIDI_OUT_NAME_TEMPLATE % pieceID).replace("\\", "/") + "\n")
 
         avgPrecision /= denominator
         avgRecall /= denominator

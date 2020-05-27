@@ -2,15 +2,25 @@ import numpy as np
 import csv
 import constants
 
+# NOTE: This is a piecewise function for the loss of a note based on it being early/late.
 l = lambda distInMs: 0 if distInMs < 20 else distInMs**0.8
+
+# NOTE: In the evaluation process, detected notes are "searched" for the N-hundred milliseconds before and after the note.
+# NOTE: If the note isn't found, just assume it's missing.
 MAX_SEARCH_DIST_IN_MS = 600.0
+
+# NOTE: The loss on a single note if it's not found within the search distance.
 NOT_FOUND_LOSS = 167.0
+
+# NOTE: Converts CQT time axis to milliseconds
 MILLISECONDS_PER_STEP = 1.0 / constants.CQT_SAMPLING_RATE * 1000
 
-# Converts output pianoroll into just onsets.
+# Converts output pianoroll into just a true followed by falses for onsets.
 def format(outputPianoroll):
+    # NOTE: Iterate through keyboard note by keyboard note
     for i, row in enumerate(outputPianoroll):
         isPrevOn = False
+        # NOTE: Iterate through time slices for just this note's pianoroll
         for j, isOn in enumerate(row):
             # TODO: don't penalize an erroneous rearticulation as much as any note that doesn't belong
             if isOn:
@@ -20,6 +30,10 @@ def format(outputPianoroll):
             else:
                 isPrevOn = False
 
+# NOTE: Delineates an algorithm for the performance of a complete piece of music.
+# NOTE: pianoroll1 is assumed to be the truth, and pianoroll2 is being evaluated against it.
+# NOTE: Depending on how you order your arguments, you can get numbers for our custom-defined
+# NOTE: precision and recall. The output of this function is [0, 1] and measures how bad performance is.
 def calculatePercentLoss(pianoroll1, pianoroll2, length):
     totalLoss = 0.0
     # Calculate max loss by pretending no notes are found
@@ -67,6 +81,7 @@ def calculatePercentLoss(pianoroll1, pianoroll2, length):
 
     return totalLoss / maxTotalLoss
 
+# NOTE: Reads in two matching pianoroll files for evaluation.
 def evaluate(outputPianorollPath, goldenPianorollPath):
     # Evaluate on precision and recall
 

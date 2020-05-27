@@ -8,6 +8,8 @@ import constants
 import os
 import pdb
 
+# NOTE: The noisification process has multiple stages. The first stage changes up the MIDI representation.
+# NOTE: MIDIs are converted to WAV manually, so this is not part of the overall pipeline and should be ignored.
 def noisifyMidi(midiPath):
     pdb.set_trace()
     midi_data = pretty_midi.PrettyMIDI(midiPath)
@@ -31,11 +33,13 @@ def butter_lowpass(cutoff, fs, order=5):
     b, a = butter(order, normal_cutoff, btype='low', analog=False)
     return b, a
 
+# NOTE: A simple lowpass filter that makes the WAV it sound more muffled.
 def butter_lowpass_filter(data, cutoff, fs, order=5):
     b, a = butter_lowpass(cutoff, fs, order=order)
     y = filtfilt(b, a, data)
     return y
 
+# NOTE: Layer (a random amount of) static noise over the WAV file.
 def noisifyWav(wavPath):
     order = 6
 
