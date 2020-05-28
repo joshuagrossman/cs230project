@@ -4,7 +4,7 @@ Automatic audio transcription from .wav to MIDI
 
 ## To get started:
 
-run `python main.py sample-cqt-dir sample-pianoroll-dir`
+run `python main.py sample-cqts sample-pianorolls`
 
 ## File structure
 
@@ -24,6 +24,6 @@ wav_to_cqt_slices.py - conversions between wav and constant-q transform slices
 noisifyMidis.py
 
 ### Directories
-sample-cqt-dir
+sample-cqts
 
-sample-pianoroll-dir
+sample-pianorolls
