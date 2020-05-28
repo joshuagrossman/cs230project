@@ -20,17 +20,28 @@ def create_model():
     Creates a model with two sets of alternating conv and pooling layers, which outputs to 88
     nodes via a sigmoid activation function. Each of the 88 output values is in the range (0, 1)
     """
-    input_shape = (constants.CONTEXT_WINDOW_ROWS, constants.CONTEXT_WINDOW_COLS, constants.NUM_RGB_CHANNELS)
-
     model = Sequential()
-    model.add(Conv2D(10, kernel_size=(9, 2), strides=(1, 1), padding='SAME', activation='relu', input_shape=input_shape))
-    model.add(Dropout(constants.DROPOUT_P))
-    model.add(MaxPooling2D(pool_size=(4, 2), strides=(1, 1)))
-    model.add(Conv2D(20, kernel_size=(4, 1), strides=(1, 1), activation='relu'))
-    model.add(Dropout(constants.DROPOUT_P))
-    model.add(MaxPooling2D(pool_size=(4, 2), strides=(2, 2)))
+
+    # Dimension: (288, 5, 1)
+    model.add(Conv2D(filters=10,
+                     kernel_size=(9, 2),
+                     strides=(1, 1),
+                     padding='SAME',
+                     activation='relu',
+                     input_shape=(288, 5, 1)))
+    # Dimension: (288, 5, 10)
+    model.add(MaxPooling2D(pool_size=(4, 2), strides=(2, 1)))
+    # Dimension: (143, 4, 10)
+    model.add(Conv2D(20, kernel_size=(5, 2), strides=(1, 1), activation='relu'))
+    # Dimension: (139, 3, 20)
+    model.add(MaxPooling2D(pool_size=(4, 1), strides=(4, 1)))
+    # Dimension: (34, 3, 20)
     model.add(Flatten())
-    model.add(Dense(constants.NUM_KEYS, activation='sigmoid'))
+    # Dimension: (2100)
+    model.add(Dense(1000))
+    model.add(Dense(500))
+    model.add(Dense(88))
+    model.add(Activation('sigmoid'))
 
     return model
 
@@ -44,8 +55,8 @@ def train_model(x_train, y_train, x_test, y_test):
     print('Creating CNN model\n')
     model = create_model()
     print('Compiling CNN model\n')
-    adam = Adam(lr=0.01)
-    model.compile(loss='binary_crossentropy', optimizer=adam, metrics=['accuracy'])
+    model.compile('adam', 'binary_crossentropy', metrics=['accuracy'])
+
     history = AccuracyHistory()
     checkpoint_path = os.path.join(constants.MODEL_CKPT_DIR, 'ckpt.h5')
     checkpoint = ModelCheckpoint(checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5', monitor='val_loss', verbose=1, save_best_only=False, mode='auto', period=10)
@@ -57,8 +68,6 @@ def train_model(x_train, y_train, x_test, y_test):
               batch_size=10,
               verbose=1,
               callbacks=[history, checkpoint])
-              # callbacks=[history])
-
 
     score = model.evaluate(x_test, y_test, verbose=0)
 
@@ -71,7 +80,6 @@ def train_model(x_train, y_train, x_test, y_test):
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.savefig('test_loss.png')
-    # plt.show()
 
 def sigmoid_array(x):                                        
     return np.round(1 / (1 + np.exp(-x)))
@@ -141,6 +149,27 @@ def make_fake_data():
                 writer.writerow(row)
 
     return cqt_slice_paths, piano_roll_slice_paths
+
+def sigmoid_array(x):                                        
+    return np.round(1 / (1 + np.exp(-x)))
+
+def run_cnn(cqt_slice_paths, piano_roll_slice_paths):
+    """
+    Extracts CNN inputs and then runs training
+    """
+    print('Reading in CQT slices and piano roll slices\n')
+    
+    x = np.zeros((num_slices, constants.CONTEXT_WINDOW_ROWS, constants.CQT_SLICE_WIDTH_IN_PIXELS, 1))
+    y = np.zeros((num_slices, constants.NUM_KEYS))
+    for i in range(num_slices):
+        cqt_slice = np.fromfile(cqt_slice_paths[i]).reshape((constants.CONTEXT_WINDOW_ROWS, constants.CQT_SLICE_WIDTH_IN_PIXELS, 1))
+        pr_slice = np.fromfile(piano_roll_slice_paths[i]).reshape((constants.NUM_KEYS))
+        x[i, :, :, :] = cqt_slice
+        y[i, :] = pr_slice
+
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+
+    train_model(x_train, y_train, x_test, y_test)
 
 # Test model with dummy data
 # cqt_slice_paths, piano_roll_slice_paths = make_fake_data()
