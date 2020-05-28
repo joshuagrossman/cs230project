@@ -28,6 +28,7 @@ def save_cqt_slice(cqtSlice, cqtSliceDir, pieceID, millisecondsOffset):
     Saves a CQT slice as a binary file.
     """
     slice_path = (cqtSliceDir + "/" + pieceID + "_" + str(millisecondsOffset) + ".bin")
+    pdb.set_trace()
     cqtSlice.tofile(slice_path)
     return
 

@@ -1,31 +1,24 @@
-from __future__ import division
 import sys
 import argparse
 import numpy as np
 import pretty_midi
 import librosa
 import constants
-import csv
 import pdb
-
-# library functions:
-# pretty_midi.get_piano_roll(fs=100, times=None)
-
-# take in a MIDI path name, time in milliseconds
-# return 88 * 1
-
-# regex 
+import collections
+import os
+import re
 
 
-def get_ground_truth_labels_at_time(piano_roll, time):
-    """
-    Takes in a piano roll (created with 1000Hz sampling rate) representation of a MIDI 
-    and a time in milliseconds and returns a (88, 1) vector of ground truth labels.
-    """
-    # NOTE: The result is a vector of 1s and 0s
-    if time >= len(piano_roll[0]):
-        return False
-    return piano_roll[:,time]
+# def get_ground_truth_labels_at_time(piano_roll, time):
+#     """
+#     Takes in a piano roll (created with 1000Hz sampling rate) representation of a MIDI 
+#     and a time in milliseconds and returns a (88, 1) vector of ground truth labels.
+#     """
+#     # NOTE: The result is a vector of 1s and 0s
+#     if time >= len(piano_roll[0]):
+#         return False
+#     return piano_roll[:,time]
 
 
 def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=constants.SAMPLE_RATE_IN_HZ):
@@ -33,36 +26,39 @@ def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=constants.SAMPLE_RA
     Returns an np array that is a piano roll representation of a midi file, cropping the
     128 note values in MIDI to the 88 notes of a piano keyboard.
     """
+    
+    
     midi_data = pretty_midi.PrettyMIDI(midi_path)
     raw_piano_roll = midi_data.get_piano_roll(fs=sampling_rate, times=None)
     piano_roll = raw_piano_roll > 0
     # 21 extra at bottom of range (C-1 -> G#0), 19 extra at top (C#8 -> G9)
-    return np.asarray(piano_roll[19:-21]).astype(int) # TODO: look at piano check to make sure we're removing the 
-                                    # right one (not flipped top/bottom)... else [21:-19]
+    # TODO: look at piano check to make sure we're removing the 
+    # right one (not flipped top/bottom)... else [21:-19]
+    return np.asarray(piano_roll[19:-21]).astype(int) 
 
-def get_test_piano_roll(midi_filename):
-    """
-    Returns a np array that is a golden piano roll representation of a midi, divided into 1/87s slices
-    """
-    return get_piano_roll_subdivided_by_ms(midi_filename, constants.CQT_SAMPLE_RATE)
 
-def writePianorollToFile(pianoroll, path):
-    np.savetxt(path, pianoroll, fmt='%i', delimiter='\t')
+# def get_test_piano_roll(midi_filename):
+#     """
+#     Returns a np array that is a golden piano roll representation of a midi, divided into 1/87s slices
+#     """
+#     return get_piano_roll_subdivided_by_ms(midi_filename, constants.CQT_SAMPLE_RATE)
     
 def convert_midi_to_pianoroll(cqt_dir, midi_dir, pianoroll_dir):
-    # Convert all MIDI to pianoroll labeled the same as CQT slices
+     """
+    Writes binary files of the piano roll corresponding to each CQT slice.
+    """
     
     # Construct dict of pieceID -> list of ms offsets
     pianorollIndicesToSample = collections.defaultdict(list)
-    
     for cqtSlicePath in os.listdir(cqt_dir):
         
         # ignore hidden files and non-csv
-        if (cqtSlicePath[0] == "." or cqtSlicePath[-4:] != ".csv" ):
+        if (cqtSlicePath[0] == "." or cqtSlicePath[-4:] != ".bin" ):
+            print("Could not read " + cqtSlicePath)
             continue
             
-        cqtSlicePath = os.path.join(cqt_dir, cqtSlicePath).replace("\\", "/")
-        p = re.compile("\/(.+)\_([0-9]+)\.csv$")
+        cqtSlicePath = os.path.join(cqt_dir, cqtSlicePath)
+        p = re.compile("\/(.+)\_([0-9]+)\.bin$")
         file_match = p.search(cqtSlicePath)
         try:
             pieceID = file_match.group(1)
@@ -72,27 +68,25 @@ def convert_midi_to_pianoroll(cqt_dir, midi_dir, pianoroll_dir):
             print(e)
             continue
     
-    # Get the relevant pianoroll slices
+    # Write the relevant pianoroll slices to file
     for pieceID in pianorollIndicesToSample:
         midiFilename = os.path.join(midi_dir, pieceID) + ".midi"
+        
         try:
-            pianoroll = midiToPianoroll.get_piano_roll_subdivided_by_ms(midiFilename)
+            pianoroll = get_piano_roll_subdivided_by_ms(midiFilename)
         except Exception as e:
             print(e)
             continue
+        
         for sliceTimeInMs in pianorollIndicesToSample[pieceID]:
-            pianorollSlice = midiToPianoroll.get_ground_truth_labels_at_time(pianoroll, sliceTimeInMs)
-            
-            # why is this here?
-            if type(pianorollSlice) == bool:
-                continue
-                
-            pianorollSlicePath = (os.path.join(pianoroll_dir, pieceID) + "_" + str(sliceTimeInMs) + ".csv").replace("\\", "/").replace("(", "").replace(")", "")
             try:
-                midiToPianoroll.writePianorollToFile(pianorollSlice, pianorollSlicePath)
+                pianorollSlice = pianoroll[:,sliceTimeInMs]
             except Exception as e:
                 print(e)
                 continue
+                
+            pianorollSlicePath = (os.path.join(pianoroll_dir, pieceID) + "_" + str(sliceTimeInMs) + ".bin")
+            pianorollSlice.tofile(pianorollSlicePath)
     return
 
 
