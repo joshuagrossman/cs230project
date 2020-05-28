@@ -81,6 +81,25 @@ def train_model(x_train, y_train, x_test, y_test):
     plt.ylabel('Accuracy')
     plt.savefig('test_loss.png')
 
+def sigmoid_array(x):                                        
+    return np.round(1 / (1 + np.exp(-x)))
+
+
+def run_cnn(cqt_slice_paths, piano_roll_slice_paths):
+    """
+    Extracts CNN inputs and then runs training
+    """
+
+    print('Reading in CQT slices and piano roll slices\n')
+    
+    cqt_slices = np.array([np.expand_dims(np.fromfile(cqt_slice_path).reshape((288, 5)), 2) for cqt_slice_path in cqt_slice_paths])
+
+    piano_roll_slices = np.array([np.fromfile(piano_roll_slice_path).reshape((88,)) for piano_roll_slice_path in piano_roll_slice_paths]).astype(int)
+    x_train, x_test, y_train, y_test = train_test_split(cqt_slices, piano_roll_slices, test_size=constants.TEST_PERCENTAGE)
+
+    train_model(x_train, y_train, x_test, y_test)
+    return
+    
 class AccuracyHistory(keras.callbacks.Callback):
     """
     Callback for keeping record of training accuracy.
@@ -131,7 +150,6 @@ def make_fake_data():
 
     return cqt_slice_paths, piano_roll_slice_paths
 
-
 def sigmoid_array(x):                                        
     return np.round(1 / (1 + np.exp(-x)))
 
@@ -153,8 +171,7 @@ def run_cnn(cqt_slice_paths, piano_roll_slice_paths):
 
     train_model(x_train, y_train, x_test, y_test)
 
-""" Test model with dummy data """
-
+# Test model with dummy data
 # cqt_slice_paths, piano_roll_slice_paths = make_fake_data()
 
 # cqt_prefix = "Train-CQT-CNN-Slices-In/Prelude_No._1_Slice_"

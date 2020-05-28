@@ -27,7 +27,6 @@ def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=constants.SAMPLE_RA
     128 note values in MIDI to the 88 notes of a piano keyboard.
     """
     
-    
     midi_data = pretty_midi.PrettyMIDI(midi_path)
     raw_piano_roll = midi_data.get_piano_roll(fs=sampling_rate, times=None)
     piano_roll = raw_piano_roll > 0
