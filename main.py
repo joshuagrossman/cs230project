@@ -4,26 +4,24 @@ import collections
 import time
 import constants
 import cnn
-import wavToTimeSeries
-import timeSeriesToCqtSlice
-import midiToPianoroll
 import pdb
+import argparse
 
 # # confirm Keras sees the GPU (for TensorFlow 1.X + Keras)
 # from keras import backend
 # assert len(backend.tensorflow_backend._get_available_gpus()) > 0
 
 import evaluateTestPianoroll
-
-def get_file_paths(dir_):
-    return [os.path.join(dir_, p).replace("\\", "/") for p in os.listdir(dir_)]
     
-def train():
+def train(cqt_dir, pianoroll_dir):
     
-    cqtSlicePaths = get_file_paths(constants.TRAIN_CQT_CNN_SLICES_IN_DIR)
-    pianoPaths = get_file_paths(constants.TRAIN_PIANOROLL_OUT_DIR)
+#     cqtSlicePaths = get_file_paths(constants.TRAIN_CQT_CNN_SLICES_IN_DIR)
+#     pianoPaths = get_file_paths(constants.TRAIN_PIANOROLL_OUT_DIR)
 
     # Train CNN on slices and pianoroll
+    
+    cqtSlicePaths = [os.path.join(cqt_dir, cqt_slice_path) for cqt_slice_path in os.listdir(cqt_dir)]
+    pianoPaths = [os.path.join(pianoroll_dir, pianoroll_path) for pianoroll_path in os.listdir(pianoroll_dir)]
     cnn.run_cnn(cqtSlicePaths, pianoPaths)
 
     return
@@ -34,8 +32,7 @@ def test():
         csvPath = os.path.join(constants.TEST_CQT_CNN_SLICES_IN_DIR, csvPath).replace("\\", "/")
         pieceID = os.path.basename(csvPath)[:-4]
         pianorollOutputPath = os.path.join(constants.TEST_PIANOROLL_OUT_DIR, 
-                                           constants.PIANOROLL_NAME_TEMPLATE % (pieceID, ""))\\
-                                           .replace("\\", "/").replace("(", "").replace(")", "")
+                                           constants.PIANOROLL_NAME_TEMPLATE % (pieceID, ""))
         cnn.make_predictions(csvPath, pianorollOutputPath)
 
     # Compare CNN output with pianoroll and assess accuracy
@@ -48,10 +45,8 @@ def test():
         denominator = 0
         for outputPianorollPathFilename in os.listdir(constants.TEST_PIANOROLL_OUT_DIR):
             
-            outputPianorollPath = os.path.join(constants.TEST_PIANOROLL_OUT_DIR, outputPianorollPathFilename)\\
-                                               .replace("\\", "/").replace("(", "").replace(")", "")
-            goldenPianorollPath = os.path.join(constants.TEST_PIANOROLL_GOLDEN_DIR, outputPianorollPathFilename)\\
-                                               .replace("\\", "/").replace("(", "").replace(")", "")
+            outputPianorollPath = os.path.join(constants.TEST_PIANOROLL_OUT_DIR, outputPianorollPathFilename)
+            goldenPianorollPath = os.path.join(constants.TEST_PIANOROLL_GOLDEN_DIR, outputPianorollPathFilename)
 
             precision, recall = evaluateTestPianoroll.evaluate(outputPianorollPath, goldenPianorollPath)
             avgPrecision += precision
@@ -77,4 +72,8 @@ def main():
     print("Testing complete! See numericalResults.txt for results!")
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description = 'Trains a CNN.')
+    parser.add_argument('cqt_dir', help='Directory of CQT slices')
+    parser.add_argument('pianoroll_dir', help='Directory of corresponding pianorolls')
+    args = parser.parse_args()
+    train(args.cqt_dir, args.pianoroll_dir)
