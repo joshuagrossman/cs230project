@@ -107,7 +107,7 @@ if __name__ == "__main__":
     
     start_time = time.time()
     
-    with mp.Pool(int(mp.cpu_count() / 2)) as pool:
+    with mp.Pool(mp.cpu_count()) as pool:
         processes = [pool.apply_async(convert_midi_to_pianoroll, args=(start_dict, midi_path, args.pianoroll_dir)) for midi_path in midi_paths]
         [process.get() for process in processes]
         

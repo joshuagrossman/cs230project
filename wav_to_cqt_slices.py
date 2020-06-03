@@ -75,7 +75,7 @@ if __name__ == "__main__":
     start_time = time.time()
     wav_paths = [os.path.join(args.wav_dir, wav_file) for wav_file in os.listdir(args.wav_dir)]
     
-    with mp.Pool(int(mp.cpu_count() / 2)) as pool:
+    with mp.Pool(mp.cpu_count()) as pool:
         processes = [pool.apply_async(make_cqt_slices, args=(wav_path, args.cqt_dir)) for wav_path in wav_paths]
         [process.get() for process in processes]
     
