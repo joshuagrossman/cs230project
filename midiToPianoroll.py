@@ -8,8 +8,121 @@ import pdb
 import collections
 import os
 import re
+import multiprocessing as mp
+import time
+
+def is_valid_file(filepath, extension):
+    """
+    Checks if a file is a valid binary file.
+    """
+    file_re = extension
+    
+    if extension=="bin":
+        file_re = re.compile("\.bin$")
+    
+    if extension=="wav":
+        file_re = re.compile("\.wav$")
+        
+    if extension=="midi":
+        file_re = re.compile("\.midi$")
+    
+    if not file_re.search(filepath):
+        print("Invalid " + extension + " file: " + filepath)
+        return False
+    return True
+
+def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=constants.SAMPLE_RATE_IN_HZ):
+    """
+    Returns an np array that is a piano roll representation of a midi file, cropping the
+    128 note values in MIDI to the 88 notes of a piano keyboard.
+    """
+    
+    if not is_valid_file(midi_path, "midi"):
+        return None
+    
+    midi_data = pretty_midi.PrettyMIDI(midi_path)
+    raw_piano_roll = midi_data.get_piano_roll(fs=sampling_rate, times=None)
+    piano_roll = raw_piano_roll > 0
+    # 21 extra at bottom of range (C-1 -> G#0), 19 extra at top (C#8 -> G9)
+    # TODO: look at piano check to make sure we're removing the 
+    # right one (not flipped top/bottom)... else [21:-19]
+    return np.asarray(piano_roll[19:-21]).astype(int) 
+    
+def get_start_dict(cqt_start_dir):
+    """
+    Returns a dictionary containing the list of slice start times for each piece.
+    """
+    
+    start_dict = {}
+    for start_file in os.listdir(cqt_start_dir):
+        start_path = os.path.join(cqt_start_dir, start_file)
+        if not is_valid_file(start_path, "bin"):
+            continue
+        starts = np.fromfile(start_path).astype(int).tolist()
+        piece_id = start_file.replace(".bin", "")
+        start_dict[piece_id] = starts
+    
+    return start_dict
+    
+    
+def convert_midi_to_pianoroll(start_dict, midi_path, pianoroll_dir):
+    """
+    Writes binary files of the piano roll corresponding to each CQT slice.
+    """
+    
+    piece_id = os.path.basename(midi_path).replace(".midi", "")
+    starts = start_dict.get(piece_id)
+    
+    if starts is None:
+        print("Could not locate slice start times for " + piece_id)
+        return
+    
+    pianoroll_subdir = os.path.join(pianoroll_dir, piece_id)
+    if not os.path.exists(pianoroll_subdir):
+        os.makedirs(pianoroll_subdir)
+    
+    pianoroll = get_piano_roll_subdivided_by_ms(midi_path)
+    if pianoroll is None:
+        print("Could not get pianoroll for " + piece_id)
+        return
+    
+    print("Saving pianorolls for " + os.path.basename(midi_path))
+    
+    for sliceTimeInMs in starts:
+        pianorollSlice = pianoroll[:,sliceTimeInMs]
+        pianorollSlicePath = pianoroll_subdir + "/" + str(sliceTimeInMs).zfill(constants.MAX_START_MS_DIGITS) + ".bin"
+        pianorollSlice.tofile(pianorollSlicePath)
+    return
 
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description = 'Converts a directory of MIDI to Pianorolls')
+    parser.add_argument('cqt_start_dir', help='Directory of CQT Slice Start Times to Match')
+    parser.add_argument('midi_dir', help='Input directory of MIDIs')
+    parser.add_argument('pianoroll_dir', help='Output directory of Pianorolls')
+    args = parser.parse_args()
+    
+    start_dict = get_start_dict(args.cqt_start_dir)
+    midi_paths = [os.path.join(args.midi_dir, midi_file) for midi_file in os.listdir(args.midi_dir)]
+    
+    start_time = time.time()
+    
+    with mp.Pool(int(mp.cpu_count() / 2)) as pool:
+        processes = [pool.apply_async(convert_midi_to_pianoroll, args=(start_dict, midi_path, args.pianoroll_dir)) for midi_path in midi_paths]
+        [process.get() for process in processes]
+        
+    print(str(round(time.time() - start_time)) + " seconds to convert " + str(len(midi_paths)) + " MIDI files to pianorolls.")
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 # def get_ground_truth_labels_at_time(piano_roll, time):
 #     """
 #     Takes in a piano roll (created with 1000Hz sampling rate) representation of a MIDI 
@@ -21,83 +134,38 @@ import re
 #     return piano_roll[:,time]
 
 
-def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=constants.SAMPLE_RATE_IN_HZ):
-    """
-    Returns an np array that is a piano roll representation of a midi file, cropping the
-    128 note values in MIDI to the 88 notes of a piano keyboard.
-    """
-    
-    midi_data = pretty_midi.PrettyMIDI(midi_path)
-    raw_piano_roll = midi_data.get_piano_roll(fs=sampling_rate, times=None)
-    piano_roll = raw_piano_roll > 0
-    # 21 extra at bottom of range (C-1 -> G#0), 19 extra at top (C#8 -> G9)
-    # TODO: look at piano check to make sure we're removing the 
-    # right one (not flipped top/bottom)... else [21:-19]
-    return np.asarray(piano_roll[19:-21]).astype(int) 
-
-
 # def get_test_piano_roll(midi_filename):
 #     """
 #     Returns a np array that is a golden piano roll representation of a midi, divided into 1/87s slices
 #     """
 #     return get_piano_roll_subdivided_by_ms(midi_filename, constants.CQT_SAMPLE_RATE)
+
+# def get_ms_offsets(cqt_dir):
+#     """
+#     Stores the offset of each slice for each piece in a dictionary.
+#     """
     
-def convert_midi_to_pianoroll(cqt_dir, midi_dir, pianoroll_dir):
-     """
-    Writes binary files of the piano roll corresponding to each CQT slice.
-    """
-    
-    # Construct dict of pieceID -> list of ms offsets
-    pianorollIndicesToSample = collections.defaultdict(list)
-    for cqtSlicePath in os.listdir(cqt_dir):
+#     # Construct dict of pieceID -> list of ms offsets
+#     pianorollIndicesToSample = collections.defaultdict(list)
+#     for cqtSlicePath in os.listdir(cqt_subdir):
         
-        # ignore hidden files and non-csv
-        if (cqtSlicePath[0] == "." or cqtSlicePath[-4:] != ".bin" ):
-            print("Could not read " + cqtSlicePath)
-            continue
+#         # ignore hidden files and non-csv
+#         if (cqtSlicePath[0] == "." or cqtSlicePath[-4:] != ".bin" ):
+#             print("Could not read " + cqtSlicePath)
+#             continue
             
-        cqtSlicePath = os.path.join(cqt_dir, cqtSlicePath)
-        p = re.compile("\/(.+)\_([0-9]+)\.bin$")
-        file_match = p.search(cqtSlicePath)
-        try:
-            pieceID = file_match.group(1)
-            sliceTimeInMs = int(file_match.group(2))
-            pianorollIndicesToSample[pieceID].append(sliceTimeInMs)
-        except Exception as e:
-            print(e)
-            continue
-    
-    # Write the relevant pianoroll slices to file
-    for pieceID in pianorollIndicesToSample:
-        midiFilename = os.path.join(midi_dir, pieceID) + ".midi"
-        
-        try:
-            pianoroll = get_piano_roll_subdivided_by_ms(midiFilename)
-        except Exception as e:
-            print(e)
-            continue
-        
-        for sliceTimeInMs in pianorollIndicesToSample[pieceID]:
-            try:
-                pianorollSlice = pianoroll[:,sliceTimeInMs]
-            except Exception as e:
-                print(e)
-                continue
-                
-            pianorollSlicePath = (os.path.join(pianoroll_dir, pieceID) + "_" + str(sliceTimeInMs) + ".bin")
-            pianorollSlice.tofile(pianorollSlicePath)
-    return
+#         cqtSlicePath = os.path.join(cqt_dir, cqtSlicePath)
+#         p = re.compile("\/(.+)\_([0-9]+)\.bin$")
+#         file_match = p.search(cqtSlicePath)
+#         try:
+#             pieceID = file_match.group(1)
+#             sliceTimeInMs = int(file_match.group(2))
+#             pianorollIndicesToSample[pieceID].append(sliceTimeInMs)
+#         except Exception as e:
+#             print(e)
+#             continue
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = 'Converts a directory of MIDI to Pianorolls')
-    parser.add_argument('cqt', help='Directory of CQT Slices to Match')
-    parser.add_argument('midi', help='Input directory of MIDIs')
-    parser.add_argument('pianoroll', help='Output directory of Pianorolls')
-    args = parser.parse_args()
-    convert_midi_to_pianoroll(args.cqt, args.midi, args.pianoroll)
-
-    
     
 # #### Export MIDI as audio
 

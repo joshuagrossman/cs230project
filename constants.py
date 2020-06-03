@@ -40,22 +40,25 @@ TEST_TIME_SERIES_IN_DIR = "Test-Time-Series-In"
 
 MODEL_CKPT_DIR = "Models"
 
-"""
-File name templates
-"""
-FUGUE_WAV_NAME_TEMPLATE = "(Fugue_No\._%s)[_\.].+"
-PRELUDE_WAV_NAME_TEMPLATE = "(Prelude_No\._%s)[_\.].+"
+# corresponds to a max song length of 3 hours
+MAX_START_MS_DIGITS = 7
 
-# E.g., Fugue_No._1_Slice_458.png (which means 458 milliseconds in)
-CQT_SLICE_NAME_TEMPLATE = "%s_Slice_(%s).csv"
+# """
+# File name templates
+# """
+# FUGUE_WAV_NAME_TEMPLATE = "(Fugue_No\._%s)[_\.].+"
+# PRELUDE_WAV_NAME_TEMPLATE = "(Prelude_No\._%s)[_\.].+"
 
-# E.g., Fugue_No._1_Pianoroll_6.png
-PIANOROLL_NAME_TEMPLATE = "%s_Pianoroll_(%s).csv"
+# # E.g., Fugue_No._1_Slice_458.png (which means 458 milliseconds in)
+# CQT_SLICE_NAME_TEMPLATE = "%s_Slice_(%s).csv"
 
-# E.g., Fugue_No._1.mid
-MIDI_OUT_NAME_TEMPLATE = "%s.mid"
+# # E.g., Fugue_No._1_Pianoroll_6.png
+# PIANOROLL_NAME_TEMPLATE = "%s_Pianoroll_(%s).csv"
 
-RESULTS_PATH = "/numericalResults%s.txt"
+# # E.g., Fugue_No._1.mid
+# MIDI_OUT_NAME_TEMPLATE = "%s.mid"
+
+# RESULTS_PATH = "/numericalResults%s.txt"
 
 """
 Numerical file parameters
