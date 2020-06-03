@@ -14,12 +14,9 @@ import argparse
 import evaluateTestPianoroll
     
 def train(cqt_dir, pianoroll_dir):
-    
-#     cqtSlicePaths = get_file_paths(constants.TRAIN_CQT_CNN_SLICES_IN_DIR)
-#     pianoPaths = get_file_paths(constants.TRAIN_PIANOROLL_OUT_DIR)
-
     # Train CNN on slices and pianoroll
     
+    # TODO: these should be organized cqt_dir > piece_dir > slice.bin
     cqtSlicePaths = [os.path.join(cqt_dir, cqt_slice_path) for cqt_slice_path in os.listdir(cqt_dir)]
     pianoPaths = [os.path.join(pianoroll_dir, pianoroll_path) for pianoroll_path in os.listdir(pianoroll_dir)]
     cnn.run_cnn(cqtSlicePaths, pianoPaths)

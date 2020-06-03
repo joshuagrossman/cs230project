@@ -1,9 +1,8 @@
 import os
 import numpy as np
 import keras
-from keras.layers import Dense, Dropout, Flatten
-from keras.layers.convolutional import Conv2D, MaxPooling2D
-from keras.models import Sequential
+from keras.layers import *
+from keras.models import Sequential, Model
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
 from sklearn.model_selection import train_test_split
@@ -12,38 +11,34 @@ import pretty_midi
 import constants
 import csv
 import pdb
+import argparse
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
+
 def create_model():
     """
-    Creates a model with two sets of alternating conv and pooling layers, which outputs to 88
-    nodes via a sigmoid activation function. Each of the 88 output values is in the range (0, 1)
+    Specifies a simple CNN/LSTM recurrent neural network.
     """
     model = Sequential()
 
-    # Dimension: (288, 5, 1)
-    model.add(Conv2D(filters=10,
-                     kernel_size=(9, 2),
-                     strides=(1, 1),
-                     padding='SAME',
-                     activation='relu',
-                     input_shape=(288, 5, 1)))
-    # Dimension: (288, 5, 10)
-    model.add(MaxPooling2D(pool_size=(4, 2), strides=(2, 1)))
-    # Dimension: (143, 4, 10)
-    model.add(Conv2D(20, kernel_size=(5, 2), strides=(1, 1), activation='relu'))
-    # Dimension: (139, 3, 20)
-    model.add(MaxPooling2D(pool_size=(4, 1), strides=(4, 1)))
-    # Dimension: (34, 3, 20)
-    model.add(Flatten())
-    # Dimension: (2100)
-    model.add(Dense(1000))
-    model.add(Dense(500))
-    model.add(Dense(88))
-    model.add(Activation('sigmoid'))
+    conv = Conv2D(filters=20,
+                 kernel_size=(20, 2),
+                 strides=(1, 1),
+                 padding='SAME',
+                 activation='relu')
+    model.add(TimeDistributed(conv, input_shape=(constants.SEQUENCE_LENGTH_IN_SLICES, constants.CONTEXT_WINDOW_ROWS, constants.CONTEXT_WINDOW_COLS, 1)))
+    model.add(TimeDistributed(MaxPooling2D(pool_size=(4, 2), strides=(2, 1))))
+    model.add(TimeDistributed(Conv2D(20, kernel_size=(20, 2), strides=(10, 1), activation='relu')))
+    model.add(TimeDistributed(MaxPooling2D(pool_size=(4, 2), strides=(2, 1))))
+    model.add(TimeDistributed(Flatten()))
+    model.add(TimeDistributed(Dense(500)))
+    model.add(LSTM(500, input_shape=(constants.SEQUENCE_LENGTH_IN_SLICES, 500), return_sequences=True))
+    model.add(LSTM(200, input_shape=(constants.SEQUENCE_LENGTH_IN_SLICES, 500), return_sequences=True))
+    model.add(TimeDistributed(Dense(88, activation = "sigmoid")))
 
     return model
+
 
 def train_model(x_train, y_train, x_test, y_test):
     """
@@ -55,7 +50,10 @@ def train_model(x_train, y_train, x_test, y_test):
     print('Creating CNN model\n')
     model = create_model()
     print('Compiling CNN model\n')
-    model.compile('adam', 'binary_crossentropy', metrics=['accuracy'])
+    opt = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, decay=0.01)
+    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
+
+    print(model.summary())
 
     history = AccuracyHistory()
     checkpoint_path = os.path.join(constants.MODEL_CKPT_DIR, 'ckpt.h5')
@@ -64,8 +62,8 @@ def train_model(x_train, y_train, x_test, y_test):
     model.fit(x_train,
               y_train,
               validation_split=0.25,
-              epochs=constants.EPOCHS,
-              batch_size=10,
+              epochs=constants.NUM_EPOCHS,
+              batch_size=constants.BATCH_SIZE,
               verbose=1,
               callbacks=[history, checkpoint])
 
@@ -76,29 +74,105 @@ def train_model(x_train, y_train, x_test, y_test):
 
     print(history.acc)
 
-    plt.plot(range(1,101), history.acc)
+    plt.plot(range(1, constants.NUM_EPOCHS + 1), history.acc)
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.savefig('test_loss.png')
 
-def sigmoid_array(x):                                        
-    return np.round(1 / (1 + np.exp(-x)))
+
+
+def get_paths_matrix(paths):
+    """
+    Gets a matrix of paths (strings) in the shape of the CNN feed.
+
+    These paths will later used to retrieve slices
+    """
+
+    paths_vector = np.array(paths)
+    num_slices = len(paths_vector)
+    num_sequences = (num_slices + constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES - constants.SEQUENCE_LENGTH_IN_SLICES) \
+        // constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES # trim so that there's a whole number of sequences
+
+    paths_matrix = np.zeros((num_sequences, constants.SEQUENCE_LENGTH_IN_SLICES), dtype=object)
+    for i in range(num_sequences):
+        paths_matrix[i, :] = paths_vector[(i * constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES):(i * constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES + constants.SEQUENCE_LENGTH_IN_SLICES)]
+
+    return paths_matrix
+
+
+def cqt_slice_from_path(path):
+    """
+    Gets the CQT matrix stored in binary at the specified path.
+    """
+
+    file_contents = np.fromfile(path)
+    cqt_slice = file_contents.reshape((constants.CONTEXT_WINDOW_ROWS, constants.CONTEXT_WINDOW_COLS))
+    return cqt_slice
+
+
+def cqt_slices(paths):
+    """
+    Returns a tensor pertaining to the full model CQT input.
+    """
+
+    # TODO: divide paths into songs
+    paths_matrix = get_paths_matrix(paths)
+    
+    # Convert paths into actual arrays
+    slice_tensor = np.zeros((paths_matrix.shape[0], paths_matrix.shape[1], constants.CONTEXT_WINDOW_ROWS, constants.CONTEXT_WINDOW_COLS, 1))
+    for i in range(paths_matrix.shape[0]):
+        for j in range(paths_matrix.shape[1]):
+            cqt_slice = cqt_slice_from_path(paths_matrix[i, j])
+            slice_tensor[i, j, :, :, 0] = cqt_slice
+
+    return slice_tensor
+
+
+def pianoroll_from_path(path):
+    """
+    Gets the pianoroll stored in binary at the specified path.
+    """
+
+    file_contents = np.fromfile(path)
+    pianoroll_slice = file_contents.reshape((constants.NUM_KEYS,)).astype(int)
+    return pianoroll_slice
+
+
+def pianoroll_slices(paths):
+    """
+    Returns a tensor pertaining to the full model pianoroll input.
+    """
+
+    # TODO: divide paths into songs
+    paths_matrix = get_paths_matrix(paths)
+    
+    # Convert paths into actual arrays
+    slice_tensor = np.zeros((paths_matrix.shape[0], paths_matrix.shape[1], constants.NUM_KEYS))
+    for i in range(paths_matrix.shape[0]):
+        for j in range(paths_matrix.shape[1]):
+            pianoroll_slice = pianoroll_from_path(paths_matrix[i, j])
+            slice_tensor[i, j, :] = pianoroll_slice
+
+    return slice_tensor
 
 
 def run_cnn(cqt_slice_paths, piano_roll_slice_paths):
     """
-    Extracts CNN inputs and then runs training
+    Extracts CNN inputs and then runs training.
     """
+    assert(len(cqt_slice_paths) == len(piano_roll_slice_paths))
 
-    print('Reading in CQT slices and piano roll slices\n')
-    
-    cqt_slices = np.array([np.expand_dims(np.fromfile(cqt_slice_path).reshape((288, 5)), 2) for cqt_slice_path in cqt_slice_paths])
+    print("Loading %d CQT inputs..." % len(cqt_slice_paths))
+    X = cqt_slices(cqt_slice_paths)
+    print("Done loading inputs. Shape is", X.shape)
+    print("Loading %d pianoroll inputs..." % len(piano_roll_slice_paths))
+    Y = pianoroll_slices(piano_roll_slice_paths)
+    print("Done loading inputs. Shape is", Y.shape)
 
-    piano_roll_slices = np.array([np.fromfile(piano_roll_slice_path).reshape((88,)) for piano_roll_slice_path in piano_roll_slice_paths]).astype(int)
-    x_train, x_test, y_train, y_test = train_test_split(cqt_slices, piano_roll_slices, test_size=constants.TEST_PERCENTAGE)
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=constants.TEST_PERCENTAGE)
 
-    train_model(x_train, y_train, x_test, y_test)
-    return
+    train_model(X_train, Y_train, X_test, Y_test)
+
     
 class AccuracyHistory(keras.callbacks.Callback):
     """
@@ -113,82 +187,13 @@ class AccuracyHistory(keras.callbacks.Callback):
         self.acc.append(logs.get('acc'))
 
 
-def make_fake_data():
-    """
-    Dummy testing function
-    """
-    cqt_slice_paths = []
-    cqt_slices = []
-    piano_roll_slice_paths = []
-
-    for i in range(10):
-        filename = 'fake_cqt_slice_%d.csv' % i
-        cqt_slice_paths.append(filename)
-        with open(filename, 'w') as f:
-            writer = csv.writer(f, delimiter='\t')
-            a = np.random.randint(0, 100, (352, 9))
-            cqt_slices.append(a)
-            for row in a:
-                writer.writerow(row)
-
-    w = np.random.random((3168, 88))
-    # input data shape is n x height
-
-
-    for i in range(10):
-        filename = 'fake_piano_roll_%d.csv' % i
-        piano_roll_slice_paths.append(filename)
-        with open(filename, 'w') as f:
-            writer = csv.writer(f, delimiter='\t')
-            curr_x = cqt_slices[i]
-            curr_x = np.reshape(curr_x, (1, 3168))
-            curr_y = np.matmul(curr_x, w).reshape((88, 1))
-            curr_y = sigmoid_array(curr_y)
-
-            for row in curr_y:
-                writer.writerow(row)
-
-    return cqt_slice_paths, piano_roll_slice_paths
-
-def sigmoid_array(x):                                        
-    return np.round(1 / (1 + np.exp(-x)))
-
-def run_cnn(cqt_slice_paths, piano_roll_slice_paths):
-    """
-    Extracts CNN inputs and then runs training
-    """
-    print('Reading in CQT slices and piano roll slices\n')
-    
-    x = np.zeros((num_slices, constants.CONTEXT_WINDOW_ROWS, constants.CQT_SLICE_WIDTH_IN_PIXELS, 1))
-    y = np.zeros((num_slices, constants.NUM_KEYS))
-    for i in range(num_slices):
-        cqt_slice = np.fromfile(cqt_slice_paths[i]).reshape((constants.CONTEXT_WINDOW_ROWS, constants.CQT_SLICE_WIDTH_IN_PIXELS, 1))
-        pr_slice = np.fromfile(piano_roll_slice_paths[i]).reshape((constants.NUM_KEYS))
-        x[i, :, :, :] = cqt_slice
-        y[i, :] = pr_slice
-
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
-
-    train_model(x_train, y_train, x_test, y_test)
-
-# Test model with dummy data
-# cqt_slice_paths, piano_roll_slice_paths = make_fake_data()
-
-# cqt_prefix = "Train-CQT-CNN-Slices-In/Prelude_No._1_Slice_"
-# pr_prefix = "Train-Pianoroll-Out/Prelude_No._1_Pianoroll_"
-# indices = [100361, 101115, 10140, 101615, 102381, 103125, 10512, 10895,
-#             1139, 11638, 12, 12021, 12765, 13136]
-# cqt_slice_paths = [cqt_prefix + str(i) + '.csv' for i in indices]
-# piano_roll_slice_paths = [pr_prefix + str(i) + '.csv' for i in indices]
-# run_cnn(cqt_slice_paths, piano_roll_slice_paths)
-
-
 def restore_model(epoch, val_loss):
     checkpoint_path = "Models/"    
     model = create_model()
     file = checkpoint_path + 'ckpt.h5weights.%d-%.2f.hdf5' % (epoch, val_loss)
     model.load_weights(file)
     return model
+
 
 def make_predictions(cqt_data, midiFilename):
     """
@@ -218,3 +223,31 @@ def make_predictions(cqt_data, midiFilename):
     outPianorollPath = os.path.join(constants.TEST_PIANOROLL_OUT_DIR, midiFilename).replace("\\", "/")
     np.savetxt(outPianorollPath, predictions, fmt='%i', delimiter='\t')
     
+
+if __name__ == '__main__':
+    """
+    If this file is run directly, it tests input/output.
+
+    Usage:
+
+    python cnn.py <cqt-dir> <pianoroll-dir>
+    """
+    parser = argparse.ArgumentParser(description = 'Test CNN')
+    parser.add_argument('cqt_dir', help='Directory of CQT slices')
+    parser.add_argument('pianoroll_dir', help='Directory of corresponding pianorolls')
+    args = parser.parse_args()
+
+    cqtSlicePaths = [os.path.join(args.cqt_dir, cqt_slice_path).replace("/", "\\") for cqt_slice_path in os.listdir(args.cqt_dir)]
+    pianoPaths = [os.path.join(args.pianoroll_dir, pianoroll_path).replace("/", "\\") for pianoroll_path in os.listdir(args.pianoroll_dir)]
+
+    print("TESTING I/O")
+    print("===========")
+    print("Loading %d CQT inputs..." % len(cqtSlicePaths))
+    X = cqt_slices(cqtSlicePaths)
+    print("Done loading inputs. Shape is", X.shape)
+
+    assert(len(cqtSlicePaths) == len(pianoPaths))
+
+    print("Loading %d pianoroll inputs..." % len(pianoPaths))
+    Y = pianorolls(pianoPaths)
+    print("Done loading inputs. Shape is", Y.shape)
