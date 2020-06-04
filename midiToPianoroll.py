@@ -10,6 +10,7 @@ import os
 import re
 import multiprocessing as mp
 import time
+import h5py
 
 def is_valid_file(filepath, extension):
     """
@@ -25,6 +26,9 @@ def is_valid_file(filepath, extension):
         
     if extension=="midi":
         file_re = re.compile("\.midi$")
+        
+    if extension=="h5":
+        file_re = re.compile("\.h5$")
     
     if not file_re.search(filepath):
         print("Invalid " + extension + " file: " + filepath)
@@ -48,19 +52,19 @@ def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=constants.SAMPLE_RA
     # right one (not flipped top/bottom)... else [21:-19]
     return np.asarray(piano_roll[19:-21]).astype(int) 
     
-def get_start_dict(cqt_start_dir):
+def get_start_dict(cqt_dir):
     """
     Returns a dictionary containing the list of slice start times for each piece.
     """
     
     start_dict = {}
-    for start_file in os.listdir(cqt_start_dir):
-        start_path = os.path.join(cqt_start_dir, start_file)
-        if not is_valid_file(start_path, "bin"):
+    for cqt_file in os.listdir(cqt_dir):
+        cqt_path = os.path.join(cqt_dir, cqt_file)
+        if not is_valid_file(cqt_path, "h5"):
             continue
-        starts = np.fromfile(start_path).astype(int).tolist()
-        piece_id = start_file.replace(".bin", "")
-        start_dict[piece_id] = starts
+        piece_id = cqt_file.replace(".h5", "")
+        with h5py.File(cqt_path, 'r') as hf:
+            start_dict[piece_id] = [int(k) for k in list(hf.keys())]
     
     return start_dict
     
@@ -77,36 +81,39 @@ def convert_midi_to_pianoroll(start_dict, midi_path, pianoroll_dir):
         print("Could not locate slice start times for " + piece_id)
         return
     
-    pianoroll_subdir = os.path.join(pianoroll_dir, piece_id)
-    if not os.path.exists(pianoroll_subdir):
-        os.makedirs(pianoroll_subdir)
-    
     pianoroll = get_piano_roll_subdivided_by_ms(midi_path)
     if pianoroll is None:
         print("Could not get pianoroll for " + piece_id)
         return
     
+    if not os.path.exists(pianoroll_dir):
+        os.makedirs(pianoroll_dir)
+        
     print("Saving pianorolls for " + os.path.basename(midi_path))
     
-    for sliceTimeInMs in starts:
-        pianorollSlice = pianoroll[:,sliceTimeInMs]
-        pianorollSlicePath = pianoroll_subdir + "/" + str(sliceTimeInMs).zfill(constants.MAX_START_MS_DIGITS) + ".bin"
-        pianorollSlice.tofile(pianorollSlicePath)
+    h5_name = os.path.join(pianoroll_dir, piece_id) + ".h5"
+    
+    with h5py.File(h5_name, 'w') as hf:
+        for sliceTimeInMs in starts:
+            pianorollSlice = pianoroll[:,sliceTimeInMs]
+            hf.create_dataset(str(sliceTimeInMs), data=pianorollSlice)
+        
     return
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = 'Converts a directory of MIDI to Pianorolls')
-    parser.add_argument('cqt_start_dir', help='Directory of CQT Slice Start Times to Match')
+    parser.add_argument('cqt_dir', help='Directory of CQT Slices to Match')
     parser.add_argument('midi_dir', help='Input directory of MIDIs')
     parser.add_argument('pianoroll_dir', help='Output directory of Pianorolls')
     args = parser.parse_args()
     
-    start_dict = get_start_dict(args.cqt_start_dir)
     midi_paths = [os.path.join(args.midi_dir, midi_file) for midi_file in os.listdir(args.midi_dir)]
+    start_dict = get_start_dict(args.cqt_dir)
     
     start_time = time.time()
     
+    # TURN DOWN CPU COUNT AS NECESSARY
     with mp.Pool(mp.cpu_count()) as pool:
         processes = [pool.apply_async(convert_midi_to_pianoroll, args=(start_dict, midi_path, args.pianoroll_dir)) for midi_path in midi_paths]
         [process.get() for process in processes]

@@ -10,6 +10,7 @@ import math
 import os
 import multiprocessing as mp
 import time
+import h5py
 
 def convert_wav_to_cqt(wavPath):
     """
@@ -46,23 +47,15 @@ def make_cqt_slices(wav_path, cqt_dir):
     
     print("Saving slices for " + os.path.basename(wav_path))
     
-    cqt_subdir = os.path.join(cqt_dir, piece_id)
-    if not os.path.exists(cqt_subdir):
-        os.makedirs(cqt_subdir)
-    
-    starts_dir = os.path.join(cqt_dir, "starts")
-    if not os.path.exists(starts_dir):
-        os.makedirs(starts_dir)
+    h5_name = os.path.join(cqt_dir, piece_id) + ".h5"
+    with h5py.File(h5_name, 'w') as hf:
         
-    starts = range(radius, tot_time-offset-radius-1, 2*radius+1)
-    np.array(starts, dtype=float).tofile(starts_dir + "/" + piece_id + ".bin")
-
-    for t in starts:
-        cqtSlice = cqt[:, (t+offset-radius):(t+offset+radius+1)]
-        millisecondsStart = int(math.ceil(float(t) / constants.CQT_SAMPLING_RATE * 1000))
-        start_as_str = str(millisecondsStart).zfill(constants.MAX_START_MS_DIGITS)
-        slice_path = (cqt_subdir + "/" + start_as_str + ".bin")
-        cqtSlice.tofile(slice_path)
+        starts = np.array(range(radius, tot_time-offset-radius-1, 2*radius+1)) 
+        
+        for t in starts:
+            cqtSlice = cqt[:, (t+offset-radius):(t+offset+radius+1)]
+            millisecondsStart = int(math.ceil(float(t) / constants.CQT_SAMPLING_RATE * 1000))
+            hf.create_dataset(str(millisecondsStart), data=cqtSlice)
 
     return 
 
@@ -75,6 +68,7 @@ if __name__ == "__main__":
     start_time = time.time()
     wav_paths = [os.path.join(args.wav_dir, wav_file) for wav_file in os.listdir(args.wav_dir)]
     
+    # TURN DOWN CPU COUNT AS NECESSARY
     with mp.Pool(mp.cpu_count()) as pool:
         processes = [pool.apply_async(make_cqt_slices, args=(wav_path, args.cqt_dir)) for wav_path in wav_paths]
         [process.get() for process in processes]
