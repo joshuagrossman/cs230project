@@ -123,6 +123,24 @@ def num_samples(dataset):
 
     return total_num_sequences
 
+# def num_samples(dataset):
+#     piece_index = 0
+#     piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
+
+#     for sequence_index in range(batch_size):
+#         if slice_index + SEQUENCE_LENGTH_IN_SLICES > piece_slices.shape[0]:
+#             # We can't make another full sequence with this piece
+#             if piece_index == len(dataset) - 1:
+#                 # We've reached the end of an epoch--don't yield these incomplete batches
+#                 return result
+
+#             # Skipping to the next piece
+#             piece_index += 1
+#             piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
+
+#         # Increment slice index and go to the next sequence
+#         slice_index += SEQUENCE_SAMPLE_FREQ_IN_SLICES
+
 
 def create_model():
     """
