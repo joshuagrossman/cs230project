@@ -45,23 +45,79 @@ def threadsafe_generator(f):
     return g
 
 
+def initialize_generator_vars(piece_index):
+    piece = pieces[piece_index]
+    hf = h5py.File(piece, "r")
+    slices = np.array(hf.get("slice_indices"))
+    cqt = np.array(hf.get("cqt"))
+    pianoroll = np.array(hf.get("pianoroll"))
+    slice_index = 0
+
+    return piece, slices, cqt, pianoroll, slice_index
+
+
 @threadsafe_generator
-def generator(hdf5_file, batch_size):
-    x = HDF5Matrix(hdf5_file, 'x')
-    size = x.end
-    y = HDF5Matrix(hdf5_file, 'y')
-    idx = 0
+def generator(pieces, batch_size=constants.BATCH_SIZE):
+    """
+    Yield one batch at a time of inputs to the CNN.
+    """
+    piece_index = 0
+    piece, piece_slices, piece_cqt, piece_pianoroll, slice_index = get_piece(piece_index)
+
     while True:
-        last_batch = idx + batch_size > size
-        end = idx + batch_size if not last_batch else size
-        yield x[idx:end], y[idx:end]
-        idx = end if not last_batch else 0
+        # In this iteration of the loop, yield a single batch of sequences
+        batch_X = np.zeros((batch_size, constants.SEQUENCE_LENGTH_IN_SLICES, constants.CONTEXT_WINDOW_ROWS, constants.CONTEXT_WINDOW_COLS, 1))
+        batch_Y = np.zeros((batch_size, constants.SEQUENCE_LENGTH_IN_SLICES, constants.NUM_KEYS))
+        reached_end_of_dataset = False
+        for batch_sequence_index in range(batch_size):
+            if slice_index + constants.SEQUENCE_LENGTH_IN_SLICES > piece_slices:
+                # We can't make another full sequence with this piece
+                if piece_index + 1 >= len(pieces):
+                    # We've reached the end of an epoch--don't yield these incomplete batches
+                    reached_end_of_dataset = True
+                    break
+
+                # Skipping to the next piece
+                piece_index += 1
+                piece, piece_slices, piece_cqt, piece_pianoroll, slice_index = get_piece(piece_index=piece_index)
+
+            # Continue constructing the batch by constructing a sequence and adding it to the batch
+            sequence_slices = piece_slices[slice_index:(slice_index + constants.SEQUENCE_LENGTH_IN_SLICES)]
+            sequence_cqt = np.zeros((constants.SEQUENCE_LENGTH_IN_SLICES, constants.CONTEXT_WINDOW_ROWS, constants.CONTEXT_WINDOW_COLS))
+            sequence_pianoroll = np.zeros((constants.SEQUENCE_LENGTH_IN_SLICES, constants.NUM_KEYS))
+            for sequence_index, slice in enumerate(sequence_slices):
+                [start, end] = slice
+                sequence_cqt[sequence_index, :, :] = piece_cqt[start:end]
+                sequence_pianoroll[sequence_index, :] = piece_pianoroll[start:end]
+
+            # Add new sequence to the batches
+            batch_X[batch_sequence_index, :, :, :, 0] = sequence_cqt
+            batch_Y[batch_sequence_index, :, :] = sequence_pianoroll
+
+            # Increment slice index and go to the next sequence
+            slice_index += constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES
+
+        # Batch is done being constructed, yield to CNN
+        if reached_end_of_dataset:
+            # We weren't able to fill out this batch, just reset everything and let the while-loop restart
+            piece, piece_slices, piece_cqt, piece_pianoroll, slice_index = get_piece(piece_index=0)
+        else:
+            yield batch_X, batch_Y
 
 
-def data_statistic(train_dataset, valid_dataset):
-    train_x = HDF5Matrix(train_dataset, 'x')
-    valid_x = HDF5Matrix(valid_dataset, 'x')
-    return train_x.end, valid_x.end
+def num_samples(dataset):
+    """
+    Find the number of sequences given by the dataset.
+    """
+    total_num_sequences = 0
+    for piece in dataset:
+        hf = h5py.File(piece, "r")
+        num_slices = np.array(hf.get("slice_indices")).shape[0]
+        num_sequences = (num_slices + constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES - constants.SEQUENCE_LENGTH_IN_SLICES) \
+            // constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES # trim so that there's a whole number of sequences
+        total_num_sequences += num_sequences
+
+    return total_num_sequences
 
 
 def create_model():
@@ -111,9 +167,13 @@ def train_model(pieces):
     train_pieces = pieces[:boundary]
     valid_pieces = pieces[boundary:]
 
+    num_train_samples = num_samples(train_pieces)
+    num_valid_samples = num_samples(valid_pieces)
+
     model.fit_generator(generator=generator(train_pieces),
+                        steps_per_epoch=num_train_samples // batch_size,
                         validation_data=generator(valid_pieces),
-                        validation_steps=nb_test_samples // batch_size,
+                        validation_steps=num_valid_samples // batch_size,
                         epochs=constants.NUM_EPOCHS,
                         batch_size=constants.BATCH_SIZE,
                         verbose=1,
