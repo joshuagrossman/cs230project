@@ -2,11 +2,12 @@ import os
 import re
 import collections
 import time
-import constants
+from constants import *
 import cnn
 import pdb
 import argparse
 import h5py
+import math
 
 # # confirm Keras sees the GPU (for TensorFlow 1.X + Keras)
 # from keras import backend
@@ -25,25 +26,25 @@ def train(data_dir):
 
 def test(test_pieces, model, history):
     
-    for csvPath in os.listdir(constants.TEST_CQT_CNN_SLICES_IN_DIR):
-        csvPath = os.path.join(constants.TEST_CQT_CNN_SLICES_IN_DIR, csvPath).replace("\\", "/")
+    for csvPath in os.listdir(TEST_CQT_CNN_SLICES_IN_DIR):
+        csvPath = os.path.join(TEST_CQT_CNN_SLICES_IN_DIR, csvPath).replace("\\", "/")
         pieceID = os.path.basename(csvPath)[:-4]
-        pianorollOutputPath = os.path.join(constants.TEST_PIANOROLL_OUT_DIR, 
-                                           constants.PIANOROLL_NAME_TEMPLATE % (pieceID, ""))
+        pianorollOutputPath = os.path.join(TEST_PIANOROLL_OUT_DIR, 
+                                           PIANOROLL_NAME_TEMPLATE % (pieceID, ""))
         cnn.make_predictions(csvPath, pianorollOutputPath)
 
     # Compare CNN output with pianoroll and assess accuracy
     # TODO: make sure each file corresponds to a complete output piano roll
-    resultsFilename = constants.RESULTS_PATH % time.strftime("%Y%m%d-%H%M%S")
+    resultsFilename = RESULTS_PATH % time.strftime("%Y%m%d-%H%M%S")
     with open(resultsFilename, "w") as resultsFile:
         # NOTE: Calculate overall accuracy by averaging across the results for the different full pieces.
         avgPrecision = 0.0
         avgRecall = 0.0
         denominator = 0
-        for outputPianorollPathFilename in os.listdir(constants.TEST_PIANOROLL_OUT_DIR):
+        for outputPianorollPathFilename in os.listdir(TEST_PIANOROLL_OUT_DIR):
             
-            outputPianorollPath = os.path.join(constants.TEST_PIANOROLL_OUT_DIR, outputPianorollPathFilename)
-            goldenPianorollPath = os.path.join(constants.TEST_PIANOROLL_GOLDEN_DIR, outputPianorollPathFilename)
+            outputPianorollPath = os.path.join(TEST_PIANOROLL_OUT_DIR, outputPianorollPathFilename)
+            goldenPianorollPath = os.path.join(TEST_PIANOROLL_GOLDEN_DIR, outputPianorollPathFilename)
 
             precision, recall = evaluateTestPianoroll.evaluate(outputPianorollPath, goldenPianorollPath)
             avgPrecision += precision
@@ -71,9 +72,12 @@ if __name__ == '__main__':
         for h5_file in os.listdir(args.data_dir) if "Chamber" not in h5_file]
 
     # Split pieces into train/test
-    boundary = (1.0 - constants.TEST_SPLIT) * len(piece_paths)
+    boundary = math.floor((1.0 - TEST_SPLIT) * len(piece_paths))
     train_pieces = piece_paths[:boundary]
     test_pieces = piece_paths[boundary:]
 
+    print(train_pieces)
+    print(test_pieces)
+
     model, history = train(train_pieces)
-    test(test_pieces, model, history)
+    # test(test_pieces, model, history)

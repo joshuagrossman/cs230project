@@ -8,11 +8,15 @@ from keras.optimizers import Adam
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import pretty_midi
-import constants
+from constants import *
 import csv
 import pdb
 import argparse
 import threading
+import time
+import math
+import h5py
+import librosa, librosa.display
 
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -45,62 +49,62 @@ def threadsafe_generator(f):
     return g
 
 
-def initialize_generator_vars(piece_index):
-    piece = pieces[piece_index]
+def get_data(piece):
     hf = h5py.File(piece, "r")
     slices = np.array(hf.get("slice_indices"))
     cqt = np.array(hf.get("cqt"))
     pianoroll = np.array(hf.get("pianoroll"))
     slice_index = 0
 
-    return piece, slices, cqt, pianoroll, slice_index
+    return slices, cqt, pianoroll, slice_index
 
 
 @threadsafe_generator
-def generator(pieces, batch_size=constants.BATCH_SIZE):
+def generator(pieces, batch_size=BATCH_SIZE):
     """
     Yield one batch at a time of inputs to the CNN.
     """
     piece_index = 0
-    piece, piece_slices, piece_cqt, piece_pianoroll, slice_index = get_piece(piece_index)
+    piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(pieces[piece_index])
 
     while True:
         # In this iteration of the loop, yield a single batch of sequences
-        batch_X = np.zeros((batch_size, constants.SEQUENCE_LENGTH_IN_SLICES, constants.CONTEXT_WINDOW_ROWS, constants.CONTEXT_WINDOW_COLS, 1))
-        batch_Y = np.zeros((batch_size, constants.SEQUENCE_LENGTH_IN_SLICES, constants.NUM_KEYS))
+        batch_X = np.zeros((batch_size, SEQUENCE_LENGTH_IN_SLICES, CONTEXT_WINDOW_ROWS, CONTEXT_WINDOW_COLS, 1))
+        batch_Y = np.zeros((batch_size, SEQUENCE_LENGTH_IN_SLICES, NUM_KEYS))
         reached_end_of_dataset = False
-        for batch_sequence_index in range(batch_size):
-            if slice_index + constants.SEQUENCE_LENGTH_IN_SLICES > piece_slices:
+        for sequence_index in range(batch_size):
+            if slice_index + SEQUENCE_LENGTH_IN_SLICES > piece_slices.shape[0]:
                 # We can't make another full sequence with this piece
-                if piece_index + 1 >= len(pieces):
+                if piece_index == len(pieces) - 1:
                     # We've reached the end of an epoch--don't yield these incomplete batches
                     reached_end_of_dataset = True
                     break
 
                 # Skipping to the next piece
                 piece_index += 1
-                piece, piece_slices, piece_cqt, piece_pianoroll, slice_index = get_piece(piece_index=piece_index)
+                piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(pieces[piece_index])
 
-            # Continue constructing the batch by constructing a sequence and adding it to the batch
-            sequence_slices = piece_slices[slice_index:(slice_index + constants.SEQUENCE_LENGTH_IN_SLICES)]
-            sequence_cqt = np.zeros((constants.SEQUENCE_LENGTH_IN_SLICES, constants.CONTEXT_WINDOW_ROWS, constants.CONTEXT_WINDOW_COLS))
-            sequence_pianoroll = np.zeros((constants.SEQUENCE_LENGTH_IN_SLICES, constants.NUM_KEYS))
-            for sequence_index, slice in enumerate(sequence_slices):
+            # Construct a sequence and add it to the batch
+            sequence_slices = piece_slices[slice_index:(slice_index + SEQUENCE_LENGTH_IN_SLICES)]
+            sequence_cqt = np.zeros((SEQUENCE_LENGTH_IN_SLICES, CONTEXT_WINDOW_ROWS, CONTEXT_WINDOW_COLS))
+            sequence_pianoroll = np.zeros((SEQUENCE_LENGTH_IN_SLICES, NUM_KEYS))
+            for i, slice in enumerate(sequence_slices):
                 [start, end] = slice
-                sequence_cqt[sequence_index, :, :] = piece_cqt[start:end]
-                sequence_pianoroll[sequence_index, :] = piece_pianoroll[start:end]
+                sequence_cqt[i, :, :] = piece_cqt[:, start:end]
+                sequence_pianoroll[i, :] = np.max(piece_pianoroll[:, start:end], axis=1)
 
             # Add new sequence to the batches
-            batch_X[batch_sequence_index, :, :, :, 0] = sequence_cqt
-            batch_Y[batch_sequence_index, :, :] = sequence_pianoroll
+            batch_X[sequence_index, :, :, :, 0] = sequence_cqt
+            batch_Y[sequence_index, :, :] = sequence_pianoroll
 
             # Increment slice index and go to the next sequence
-            slice_index += constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES
+            slice_index += SEQUENCE_SAMPLE_FREQ_IN_SLICES
 
         # Batch is done being constructed, yield to CNN
         if reached_end_of_dataset:
             # We weren't able to fill out this batch, just reset everything and let the while-loop restart
-            piece, piece_slices, piece_cqt, piece_pianoroll, slice_index = get_piece(piece_index=0)
+            piece_index = 0
+            piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(pieces[piece_index])
         else:
             yield batch_X, batch_Y
 
@@ -113,8 +117,8 @@ def num_samples(dataset):
     for piece in dataset:
         hf = h5py.File(piece, "r")
         num_slices = np.array(hf.get("slice_indices")).shape[0]
-        num_sequences = (num_slices + constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES - constants.SEQUENCE_LENGTH_IN_SLICES) \
-            // constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES # trim so that there's a whole number of sequences
+        num_sequences = (num_slices + SEQUENCE_SAMPLE_FREQ_IN_SLICES - SEQUENCE_LENGTH_IN_SLICES) \
+            // SEQUENCE_SAMPLE_FREQ_IN_SLICES # trim so that there's a whole number of sequences
         total_num_sequences += num_sequences
 
     return total_num_sequences
@@ -131,14 +135,14 @@ def create_model():
                  strides=(1, 1),
                  padding='SAME',
                  activation='relu')
-    model.add(TimeDistributed(conv, input_shape=(constants.SEQUENCE_LENGTH_IN_SLICES, constants.CONTEXT_WINDOW_ROWS, constants.CONTEXT_WINDOW_COLS, 1)))
+    model.add(TimeDistributed(conv, input_shape=(SEQUENCE_LENGTH_IN_SLICES, CONTEXT_WINDOW_ROWS, CONTEXT_WINDOW_COLS, 1)))
     model.add(TimeDistributed(MaxPooling2D(pool_size=(4, 2), strides=(2, 1))))
     model.add(TimeDistributed(Conv2D(20, kernel_size=(20, 2), strides=(10, 1), activation='relu')))
     model.add(TimeDistributed(MaxPooling2D(pool_size=(4, 2), strides=(2, 1))))
     model.add(TimeDistributed(Flatten()))
     model.add(TimeDistributed(Dense(500)))
-    model.add(LSTM(500, input_shape=(constants.SEQUENCE_LENGTH_IN_SLICES, 500), return_sequences=True))
-    model.add(LSTM(200, input_shape=(constants.SEQUENCE_LENGTH_IN_SLICES, 500), return_sequences=True))
+    model.add(LSTM(500, input_shape=(SEQUENCE_LENGTH_IN_SLICES, 500), return_sequences=True, recurrent_dropout=DROPOUT_P))
+    model.add(LSTM(200, input_shape=(SEQUENCE_LENGTH_IN_SLICES, 500), return_sequences=True))
     model.add(TimeDistributed(Dense(88, activation = "sigmoid")))
 
     return model
@@ -151,31 +155,31 @@ def train_model(pieces):
     Inspired by https://github.com/chaumifan/DSL_Final
     """
 
-    print('Creating CNN model\n')
     model = create_model()
-    print('Compiling CNN model\n')
     opt = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, decay=0.01)
     model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
 
     print(model.summary())
 
     history = AccuracyHistory()
-    checkpoint_path = os.path.join(constants.MODEL_CKPT_DIR, 'ckpt.h5')
+    checkpoint_path = os.path.join(MODEL_CKPT_DIR, 'ckpt.h5')
     checkpoint = ModelCheckpoint(checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5', monitor='val_loss', verbose=1, save_best_only=False, mode='auto', period=10)
     
-    boundary = (1.0 - constants.VALIDATION_SPLIT) * len(pieces)
+    boundary = math.floor((1.0 - VALIDATION_SPLIT) * len(pieces))
     train_pieces = pieces[:boundary]
     valid_pieces = pieces[boundary:]
 
     num_train_samples = num_samples(train_pieces)
     num_valid_samples = num_samples(valid_pieces)
 
+    print("Number of ~5s training sequences:", num_train_samples)
+    print("Number of ~5s validation sequences:", num_valid_samples)
+
     model.fit_generator(generator=generator(train_pieces),
-                        steps_per_epoch=num_train_samples // batch_size,
+                        steps_per_epoch=num_train_samples // BATCH_SIZE,
                         validation_data=generator(valid_pieces),
-                        validation_steps=num_valid_samples // batch_size,
-                        epochs=constants.NUM_EPOCHS,
-                        batch_size=constants.BATCH_SIZE,
+                        validation_steps=num_valid_samples // BATCH_SIZE,
+                        epochs=NUM_EPOCHS,
                         verbose=1,
                         callbacks=[history, checkpoint])
 
@@ -190,86 +194,10 @@ def evaluate_model(x_test, y_test, model, history):
 
     print(history.acc)
 
-    plt.plot(range(1, constants.NUM_EPOCHS + 1), history.acc)
+    plt.plot(range(1, NUM_EPOCHS + 1), history.acc)
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.savefig('test_loss.png')
-
-
-
-def get_paths_matrix(paths):
-    """
-    Gets a matrix of paths (strings) in the shape of the CNN feed.
-
-    These paths will later used to retrieve slices
-    """
-
-    paths_vector = np.array(paths)
-    num_slices = len(paths_vector)
-    num_sequences = (num_slices + constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES - constants.SEQUENCE_LENGTH_IN_SLICES) \
-        // constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES # trim so that there's a whole number of sequences
-
-    paths_matrix = np.zeros((num_sequences, constants.SEQUENCE_LENGTH_IN_SLICES), dtype=object)
-    for i in range(num_sequences):
-        paths_matrix[i, :] = paths_vector[(i * constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES):(i * constants.SEQUENCE_SAMPLE_FREQ_IN_SLICES + constants.SEQUENCE_LENGTH_IN_SLICES)]
-
-    return paths_matrix
-
-
-def cqt_slice_from_path(path):
-    """
-    Gets the CQT matrix stored in binary at the specified path.
-    """
-
-    file_contents = np.fromfile(path)
-    cqt_slice = file_contents.reshape((constants.CONTEXT_WINDOW_ROWS, constants.CONTEXT_WINDOW_COLS))
-    return cqt_slice
-
-
-def cqt_slices(paths):
-    """
-    Returns a tensor pertaining to the full model CQT input.
-    """
-
-    # TODO: divide paths into songs
-    paths_matrix = get_paths_matrix(paths)
-    
-    # Convert paths into actual arrays
-    slice_tensor = np.zeros((paths_matrix.shape[0], paths_matrix.shape[1], constants.CONTEXT_WINDOW_ROWS, constants.CONTEXT_WINDOW_COLS, 1))
-    for i in range(paths_matrix.shape[0]):
-        for j in range(paths_matrix.shape[1]):
-            cqt_slice = cqt_slice_from_path(paths_matrix[i, j])
-            slice_tensor[i, j, :, :, 0] = cqt_slice
-
-    return slice_tensor
-
-
-def pianoroll_from_path(path):
-    """
-    Gets the pianoroll stored in binary at the specified path.
-    """
-
-    file_contents = np.fromfile(path)
-    pianoroll_slice = file_contents.reshape((constants.NUM_KEYS,)).astype(int)
-    return pianoroll_slice
-
-
-def pianoroll_slices(paths):
-    """
-    Returns a tensor pertaining to the full model pianoroll input.
-    """
-
-    # TODO: divide paths into songs
-    paths_matrix = get_paths_matrix(paths)
-    
-    # Convert paths into actual arrays
-    slice_tensor = np.zeros((paths_matrix.shape[0], paths_matrix.shape[1], constants.NUM_KEYS))
-    for i in range(paths_matrix.shape[0]):
-        for j in range(paths_matrix.shape[1]):
-            pianoroll_slice = pianoroll_from_path(paths_matrix[i, j])
-            slice_tensor[i, j, :] = pianoroll_slice
-
-    return slice_tensor
 
     
 class AccuracyHistory(keras.callbacks.Callback):
@@ -299,7 +227,7 @@ def make_predictions(cqt_data, midiFilename):
     output as a column to pianoroll prediction. Writes pianoroll prediction to file.
     """
     
-    model = restore_model(constants.CHECKPOINT_EPOCH, constants.CHECKPOINT_VAL_LOSS)
+    model = restore_model(CHECKPOINT_EPOCH, CHECKPOINT_VAL_LOSS)
     print("CNN model restored.")
     cqt_array = np.array(cqt_data)
 
@@ -318,7 +246,7 @@ def make_predictions(cqt_data, midiFilename):
             predictions = np.hstack((predictions, result.T))
     print("Pianoroll predictions made.")
 
-    outPianorollPath = os.path.join(constants.TEST_PIANOROLL_OUT_DIR, midiFilename).replace("\\", "/")
+    outPianorollPath = os.path.join(TEST_PIANOROLL_OUT_DIR, midiFilename).replace("\\", "/")
     np.savetxt(outPianorollPath, predictions, fmt='%i', delimiter='\t')
     
 

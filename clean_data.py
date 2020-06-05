@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 import pretty_midi
 import librosa
-import constants
+from constants import *
 import pdb
 import collections
 import os
@@ -39,13 +39,13 @@ def convert_wav_to_cqt(wavPath):
     """
     y, sr = librosa.load(path=wavPath, sr=None, offset=0)
     
-    cqt = np.abs(librosa.cqt(y, sr=sr, n_bins=constants.CONTEXT_WINDOW_ROWS, 
-                           bins_per_octave=constants.BINS_PER_OCTAVE, 
-                           hop_length=constants.HOP_LENGTH, 
-                           filter_scale=constants.FILTER_SCALE))
+    cqt = np.abs(librosa.cqt(y, sr=sr, n_bins=CONTEXT_WINDOW_ROWS, 
+                           bins_per_octave=BINS_PER_OCTAVE, 
+                           hop_length=HOP_LENGTH, 
+                           filter_scale=FILTER_SCALE))
     return cqt
 
-def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=constants.SAMPLE_RATE_IN_HZ):
+def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=SAMPLE_RATE_IN_HZ):
     """
     Returns an np array that is a piano roll representation of a midi file, cropping the
     128 note values in MIDI to the 88 notes of a piano keyboard.
@@ -84,8 +84,8 @@ def get_cqt_and_pianoroll(wav_path, midi_dir, output_dir):
     print("Saving CQT and pianorolls for " + piece_id)
     
     tot_time = cqt.shape[1]
-    radius = constants.CQT_SLICE_RADIUS_IN_PIXELS
-    offset = constants.CQT_SLICE_OFFSET_IN_PIXELS
+    radius = CQT_SLICE_RADIUS_IN_PIXELS
+    offset = CQT_SLICE_OFFSET_IN_PIXELS
     
     onsets = np.array(range(radius, tot_time-offset-radius-1, 2*radius+1)) 
     slice_indices = np.array([(onset+offset-radius, onset+offset+radius+1) for onset in onsets])

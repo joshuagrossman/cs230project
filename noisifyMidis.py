@@ -4,7 +4,7 @@ import numpy as np
 import random
 import pretty_midi
 from scipy.signal import butter, lfilter, filtfilt, freqz
-import constants
+from constants import *
 import os
 import pdb
 
@@ -61,21 +61,21 @@ if __name__ == '__main__':
     isMidi = False
 
     if isMidi:
-        for midiFilename in os.listdir(constants.WTC1_MIDI_DIR):
-            midiFilenamePath = os.path.join(constants.WTC1_MIDI_DIR, midiFilename)
+        for midiFilename in os.listdir(WTC1_MIDI_DIR):
+            midiFilenamePath = os.path.join(WTC1_MIDI_DIR, midiFilename)
             noisifyMidi(midiFilenamePath)
             print(midiFilename)
-        for midiFilename in os.listdir(constants.WTC2_MIDI_DIR):
-            midiFilenamePath = os.path.join(constants.WTC2_MIDI_DIR, midiFilename)
+        for midiFilename in os.listdir(WTC2_MIDI_DIR):
+            midiFilenamePath = os.path.join(WTC2_MIDI_DIR, midiFilename)
             noisifyMidi(midiFilenamePath)
             print(midiFilename)
     else:
-        for wavFilename in os.listdir(constants.WTC1_WAV_DIR):
-            wavFilenamePath = os.path.join(constants.WTC1_WAV_DIR, wavFilename)
+        for wavFilename in os.listdir(WTC1_WAV_DIR):
+            wavFilenamePath = os.path.join(WTC1_WAV_DIR, wavFilename)
             noisifyWav(wavFilenamePath)
             print(wavFilename)
 
-        for wavFilename in os.listdir(constants.WTC2_WAV_DIR):
-            wavFilenamePath = os.path.join(constants.WTC2_WAV_DIR, wavFilename)
+        for wavFilename in os.listdir(WTC2_WAV_DIR):
+            wavFilenamePath = os.path.join(WTC2_WAV_DIR, wavFilename)
             noisifyWav(wavFilenamePath)
             print(wavFilename)

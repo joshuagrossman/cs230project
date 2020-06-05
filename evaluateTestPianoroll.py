@@ -1,6 +1,6 @@
 import numpy as np
 import csv
-import constants
+from constants import *
 
 # NOTE: This is a piecewise function for the loss of a note based on it being early/late.
 l = lambda distInMs: 0 if distInMs < 20 else distInMs**0.8
@@ -13,7 +13,7 @@ MAX_SEARCH_DIST_IN_MS = 600.0
 NOT_FOUND_LOSS = 167.0
 
 # NOTE: Converts CQT time axis to milliseconds
-MILLISECONDS_PER_STEP = 1.0 / constants.CQT_SAMPLING_RATE * 1000
+MILLISECONDS_PER_STEP = 1.0 / CQT_SAMPLING_RATE * 1000
 
 # Converts output pianoroll into just a true followed by falses for onsets.
 def format(outputPianoroll):
