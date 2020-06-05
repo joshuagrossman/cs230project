@@ -184,8 +184,8 @@ def train_model(pieces):
     checkpoint = ModelCheckpoint(checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5', monitor='val_loss', verbose=1, save_best_only=False, mode='auto', period=1)
     
     boundary = math.floor((1.0 - VALIDATION_SPLIT) * len(pieces))
-    train_pieces = pieces[:boundary]
-    valid_pieces = pieces[boundary:]
+    train_pieces = pieces[:2]
+    valid_pieces = pieces[-2:]
 
     num_train_samples = num_samples(train_pieces)
     num_valid_samples = num_samples(valid_pieces)
