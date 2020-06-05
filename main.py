@@ -6,24 +6,24 @@ import constants
 import cnn
 import pdb
 import argparse
+import h5py
 
 # # confirm Keras sees the GPU (for TensorFlow 1.X + Keras)
 # from keras import backend
 # assert len(backend.tensorflow_backend._get_available_gpus()) > 0
 
 import evaluateTestPianoroll
-    
-def train(cqt_dir, pianoroll_dir):
+
+
+def train(data_dir):
     # Train CNN on slices and pianoroll
-    
-    # TODO: these should be organized cqt_dir > piece_dir > slice.bin
-    cqtSlicePaths = [os.path.join(cqt_dir, cqt_slice_path) for cqt_slice_path in os.listdir(cqt_dir)]
-    pianoPaths = [os.path.join(pianoroll_dir, pianoroll_path) for pianoroll_path in os.listdir(pianoroll_dir)]
-    cnn.run_cnn(cqtSlicePaths, pianoPaths)
 
-    return
+    model, history = cnn.train_model(train_pieces)
 
-def test():
+    return model, history
+
+
+def test(test_pieces, model, history):
     
     for csvPath in os.listdir(constants.TEST_CQT_CNN_SLICES_IN_DIR):
         csvPath = os.path.join(constants.TEST_CQT_CNN_SLICES_IN_DIR, csvPath).replace("\\", "/")
@@ -60,17 +60,20 @@ def test():
         resultsFile.write("Recall: " + str(avgRecall) + "\n")
     print("Evaluation complete! See numericalResults.txt for results.\n")
 
-def main():
-    train()
-    print("Training complete!")
-    return
-
-    test()
-    print("Testing complete! See numericalResults.txt for results!")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Trains a CNN.')
-    parser.add_argument('cqt_dir', help='Directory of CQT slices')
-    parser.add_argument('pianoroll_dir', help='Directory of corresponding pianorolls')
+    parser.add_argument('data_dir', help='Directory of h5 files')
     args = parser.parse_args()
-    train(args.cqt_dir, args.pianoroll_dir)
+
+    # Get h5 files corresponding to pieces
+    piece_paths = [os.path.join(args.data_dir, h5_file) \
+        for h5_file in os.listdir(args.data_dir) if "Chamber" not in h5_file]
+
+    # Split pieces into train/test
+    boundary = (1.0 - constants.TEST_SPLIT) * len(piece_paths)
+    train_pieces = piece_paths[:boundary]
+    test_pieces = piece_paths[boundary:]
+
+    model, history = train(train_pieces)
+    test(test_pieces, model, history)

@@ -12,8 +12,56 @@ import constants
 import csv
 import pdb
 import argparse
+import threading
+
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
+
+class threadsafe_iter:
+    """Takes an iterator/generator and makes it thread-safe by
+    serializing call to the `next` method of given iterator/generator.
+    """
+
+    def __init__(self, it):
+        self.it = it
+        self.lock = threading.Lock()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        with self.lock:
+            return self.it.__next__()
+
+
+def threadsafe_generator(f):
+    """A decorator that takes a generator function and makes it thread-safe.
+    """
+
+    def g(*a, **kw):
+        return threadsafe_iter(f(*a, **kw))
+
+    return g
+
+
+@threadsafe_generator
+def generator(hdf5_file, batch_size):
+    x = HDF5Matrix(hdf5_file, 'x')
+    size = x.end
+    y = HDF5Matrix(hdf5_file, 'y')
+    idx = 0
+    while True:
+        last_batch = idx + batch_size > size
+        end = idx + batch_size if not last_batch else size
+        yield x[idx:end], y[idx:end]
+        idx = end if not last_batch else 0
+
+
+def data_statistic(train_dataset, valid_dataset):
+    train_x = HDF5Matrix(train_dataset, 'x')
+    valid_x = HDF5Matrix(valid_dataset, 'x')
+    return train_x.end, valid_x.end
 
 
 def create_model():
@@ -40,7 +88,7 @@ def create_model():
     return model
 
 
-def train_model(x_train, y_train, x_test, y_test):
+def train_model(pieces):
     """
     Trains CNN and evaluates it on test set. Checkpoints are saved in a directory.
 
@@ -59,14 +107,22 @@ def train_model(x_train, y_train, x_test, y_test):
     checkpoint_path = os.path.join(constants.MODEL_CKPT_DIR, 'ckpt.h5')
     checkpoint = ModelCheckpoint(checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5', monitor='val_loss', verbose=1, save_best_only=False, mode='auto', period=10)
     
-    model.fit(x_train,
-              y_train,
-              validation_split=0.25,
-              epochs=constants.NUM_EPOCHS,
-              batch_size=constants.BATCH_SIZE,
-              verbose=1,
-              callbacks=[history, checkpoint])
+    boundary = (1.0 - constants.VALIDATION_SPLIT) * len(pieces)
+    train_pieces = pieces[:boundary]
+    valid_pieces = pieces[boundary:]
 
+    model.fit_generator(generator=generator(train_pieces),
+                        validation_data=generator(valid_pieces),
+                        validation_steps=nb_test_samples // batch_size,
+                        epochs=constants.NUM_EPOCHS,
+                        batch_size=constants.BATCH_SIZE,
+                        verbose=1,
+                        callbacks=[history, checkpoint])
+
+    return model, history
+
+
+def evaluate_model(x_test, y_test, model, history):
     score = model.evaluate(x_test, y_test, verbose=0)
 
     print('Train loss: ', score[0])
@@ -154,24 +210,6 @@ def pianoroll_slices(paths):
             slice_tensor[i, j, :] = pianoroll_slice
 
     return slice_tensor
-
-
-def run_cnn(cqt_slice_paths, piano_roll_slice_paths):
-    """
-    Extracts CNN inputs and then runs training.
-    """
-    assert(len(cqt_slice_paths) == len(piano_roll_slice_paths))
-
-    print("Loading %d CQT inputs..." % len(cqt_slice_paths))
-    X = cqt_slices(cqt_slice_paths)
-    print("Done loading inputs. Shape is", X.shape)
-    print("Loading %d pianoroll inputs..." % len(piano_roll_slice_paths))
-    Y = pianoroll_slices(piano_roll_slice_paths)
-    print("Done loading inputs. Shape is", Y.shape)
-
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=constants.TEST_PERCENTAGE)
-
-    train_model(X_train, Y_train, X_test, Y_test)
 
     
 class AccuracyHistory(keras.callbacks.Callback):

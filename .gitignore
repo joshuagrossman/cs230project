@@ -20,3 +20,6 @@ multiprocessing-test.py
 sample-cqt-aitan
 sample-pianoroll-aitan
 test-output
+sample-cqts
+sample-pianorolls
+sample-h5
