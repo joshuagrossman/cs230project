@@ -101,7 +101,7 @@ def get_cqt_and_pianoroll(wav_path, midi_dir, output_dir):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = 'Converts a directory of WAV to CQT Slices')
+    parser = argparse.ArgumentParser(description = 'Converts a directory of WAV files to CQT Slices and grabs corresponding pianorolls')
     parser.add_argument('wav_dir', help='Input directory of WAV files')
     parser.add_argument('midi_dir', help='Input directory of MIDI files')
     parser.add_argument('output_dir', help='Output directory of CQT Slices and Pianorolls')
