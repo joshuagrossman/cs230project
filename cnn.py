@@ -163,7 +163,7 @@ def train_model(pieces):
 
     history = AccuracyHistory()
     checkpoint_path = os.path.join(MODEL_CKPT_DIR, 'ckpt.h5')
-    checkpoint = ModelCheckpoint(checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5', monitor='val_loss', verbose=1, save_best_only=False, mode='auto', period=10)
+    checkpoint = ModelCheckpoint(checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5', monitor='val_loss', verbose=1, save_best_only=False, mode='auto', period=1)
     
     boundary = math.floor((1.0 - VALIDATION_SPLIT) * len(pieces))
     train_pieces = pieces[:boundary]
@@ -172,8 +172,8 @@ def train_model(pieces):
     num_train_samples = num_samples(train_pieces)
     num_valid_samples = num_samples(valid_pieces)
 
-    print("Number of ~5s training sequences:", num_train_samples)
-    print("Number of ~5s validation sequences:", num_valid_samples)
+    print("Number of training batches:", num_train_samples // BATCH_SIZE)
+    print("Number of validation batches:", num_valid_samples // BATCH_SIZE)
 
     model.fit_generator(generator=generator(train_pieces),
                         steps_per_epoch=num_train_samples // BATCH_SIZE,
