@@ -76,8 +76,5 @@ if __name__ == '__main__':
     train_pieces = piece_paths[:boundary]
     test_pieces = piece_paths[boundary:]
 
-    print(train_pieces)
-    print(test_pieces)
-
     model, history = train(train_pieces)
     # test(test_pieces, model, history)

@@ -1,0 +1,17 @@
+WARNING:tensorflow:From /home/ubuntu/anaconda3/lib/python3.7/site-packages/tensorflow_core/python/ops/math_grad.py:1424: where (from tensorflow.python.ops.array_ops) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use tf.where in 2.0, which has the same broadcast rule as np.where
+2020-06-05 18:26:05.588556: I tensorflow/core/platform/cpu_feature_guard.cc:142] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 FMA
+2020-06-05 18:26:05.623589: I tensorflow/core/platform/profile_utils/cpu_utils.cc:94] CPU Frequency: 2300070000 Hz
+2020-06-05 18:26:05.623881: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x562393bc51c0 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+2020-06-05 18:26:05.623911: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
+WARNING:tensorflow:From /home/ubuntu/anaconda3/lib/python3.7/site-packages/keras/backend/tensorflow_backend.py:422: The name tf.global_variables is deprecated. Please use tf.compat.v1.global_variables instead.
+
+Epoch 1/10
+2020-06-05 18:26:56.205006: E tensorflow/core/grappler/optimizers/dependency_optimizer.cc:697] Iteration = 0, topological sort failed with message: The graph couldn't be sorted in topological order.
+2020-06-05 18:26:56.211543: E tensorflow/core/grappler/optimizers/dependency_optimizer.cc:697] Iteration = 1, topological sort failed with message: The graph couldn't be sorted in topological order.
+2020-06-05 18:26:56.233169: E tensorflow/core/grappler/optimizers/meta_optimizer.cc:533] model_pruner failed: Invalid argument: MutableGraphView::MutableGraphView error: node 'loss/time_distributed_7_loss/binary_crossentropy/weighted_loss/concat' has self cycle fanin 'loss/time_distributed_7_loss/binary_crossentropy/weighted_loss/concat'.
+2020-06-05 18:26:56.267935: E tensorflow/core/grappler/optimizers/meta_optimizer.cc:533] remapper failed: Invalid argument: MutableGraphView::MutableGraphView error: node 'loss/time_distributed_7_loss/binary_crossentropy/weighted_loss/concat' has self cycle fanin 'loss/time_distributed_7_loss/binary_crossentropy/weighted_loss/concat'.
+2020-06-05 18:26:56.274050: E tensorflow/core/grappler/optimizers/meta_optimizer.cc:533] arithmetic_optimizer failed: Invalid argument: The graph couldn't be sorted in topological order.
+2020-06-05 18:26:56.279786: E tensorflow/core/grappler/optimizers/dependency_optimizer.cc:697] Iteration = 0, topological sort failed with message: The graph couldn't be sorted in topological order.
+2020-06-05 18:26:56.285435: E tensorflow/core/grappler/optimizers/dependency_optimizer.cc:697] Iteration = 1, topological sort failed with message: The graph couldn't be sorted in topological order.
