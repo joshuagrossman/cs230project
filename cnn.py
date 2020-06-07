@@ -1,3 +1,5 @@
+from util import *
+from constants import *
 import os
 import numpy as np
 import keras
@@ -8,11 +10,9 @@ from keras.optimizers import Adam
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import pretty_midi
-from constants import *
 import csv
 import pdb
 import argparse
-import threading
 import time
 import math
 import h5py
@@ -20,43 +20,6 @@ import librosa, librosa.display
 
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-
-
-class threadsafe_iter:
-    """Takes an iterator/generator and makes it thread-safe by
-    serializing call to the `next` method of given iterator/generator.
-    """
-
-    def __init__(self, it):
-        self.it = it
-        self.lock = threading.Lock()
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        with self.lock:
-            return self.it.__next__()
-
-
-def threadsafe_generator(f):
-    """A decorator that takes a generator function and makes it thread-safe.
-    """
-
-    def g(*a, **kw):
-        return threadsafe_iter(f(*a, **kw))
-
-    return g
-
-
-def get_data(piece):
-    hf = h5py.File(piece, "r")
-    slices = np.array(hf.get("slice_indices"))
-    cqt = np.array(hf.get("cqt"))
-    pianoroll = np.array(hf.get("pianoroll"))
-    slice_index = 0
-
-    return slices, cqt, pianoroll, slice_index
 
 
 @threadsafe_generator
@@ -109,37 +72,42 @@ def generator(pieces, batch_size=BATCH_SIZE):
             yield batch_X, batch_Y
 
 
-def num_samples(dataset):
-    """
-    Find the number of sequences given by the dataset.
-    """
-    total_num_sequences = 0
-    for piece in dataset:
-        hf = h5py.File(piece, "r")
-        num_slices = np.array(hf.get("slice_indices")).shape[0]
-        num_sequences = (num_slices + SEQUENCE_SAMPLE_FREQ_IN_SLICES - SEQUENCE_LENGTH_IN_SLICES) \
-            // SEQUENCE_SAMPLE_FREQ_IN_SLICES # trim so that there's a whole number of sequences
-        total_num_sequences += num_sequences
-
-    return total_num_sequences
-
 # def num_samples(dataset):
-#     piece_index = 0
-#     piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
+#     """
+#     Find the number of sequences given by the dataset.
+#     """
+#     total_num_sequences = 0
+#     for piece in dataset:
+#         hf = h5py.File(piece, "r")
+#         num_slices = np.array(hf.get("slice_indices")).shape[0]
+#         num_sequences = (num_slices + SEQUENCE_SAMPLE_FREQ_IN_SLICES - SEQUENCE_LENGTH_IN_SLICES) \
+#             // SEQUENCE_SAMPLE_FREQ_IN_SLICES # trim so that there's a whole number of sequences
+#         total_num_sequences += num_sequences
 
-#     for sequence_index in range(batch_size):
-#         if slice_index + SEQUENCE_LENGTH_IN_SLICES > piece_slices.shape[0]:
-#             # We can't make another full sequence with this piece
-#             if piece_index == len(dataset) - 1:
-#                 # We've reached the end of an epoch--don't yield these incomplete batches
-#                 return result
+#     return total_num_sequences
 
-#             # Skipping to the next piece
-#             piece_index += 1
-#             piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
+def num_samples(dataset):
+    result = 0
 
-#         # Increment slice index and go to the next sequence
-#         slice_index += SEQUENCE_SAMPLE_FREQ_IN_SLICES
+    piece_index = 0
+    piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
+
+    for sequence_index in range(batch_size):
+        if slice_index + SEQUENCE_LENGTH_IN_SLICES > piece_slices.shape[0]:
+            # We can't make another full sequence with this piece
+            if piece_index == len(dataset) - 1:
+                # We've reached the end of an epoch--don't yield these incomplete batches
+                return result
+
+            # Skipping to the next piece
+            piece_index += 1
+            piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
+
+        # Increment slice index and go to the next sequence
+        slice_index += SEQUENCE_SAMPLE_FREQ_IN_SLICES
+        result += 1
+
+    return result
 
 
 def create_model():
@@ -156,6 +124,7 @@ def create_model():
     model.add(TimeDistributed(conv, input_shape=(SEQUENCE_LENGTH_IN_SLICES, CONTEXT_WINDOW_ROWS, CONTEXT_WINDOW_COLS, 1)))
     model.add(TimeDistributed(MaxPooling2D(pool_size=(4, 2), strides=(2, 1))))
     model.add(TimeDistributed(Conv2D(20, kernel_size=(20, 2), strides=(10, 1), activation='relu')))
+    model.add(TimeDistributed(Conv2D(20, kernel_size=(15, 2), strides=(7, 1), activation='relu')))
     model.add(TimeDistributed(MaxPooling2D(pool_size=(4, 2), strides=(2, 1))))
     model.add(TimeDistributed(Flatten()))
     model.add(TimeDistributed(Dense(500)))
@@ -180,12 +149,17 @@ def train_model(pieces):
     print(model.summary())
 
     history = AccuracyHistory()
-    checkpoint_path = os.path.join(MODEL_CKPT_DIR, 'ckpt.h5')
-    checkpoint = ModelCheckpoint(checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5', monitor='val_loss', verbose=1, save_best_only=False, mode='auto', period=1)
+    checkpoint_path = 
+    checkpoint = ModelCheckpoint(os.path.join(MODEL_CKPT_DIR, 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
+                                 monitor='val_loss',
+                                 verbose=1,
+                                 save_best_only=False,
+                                 mode='auto',
+                                 period=1)
     
     boundary = math.floor((1.0 - VALIDATION_SPLIT) * len(pieces))
-    train_pieces = pieces[:2]
-    valid_pieces = pieces[-2:]
+    train_pieces = pieces[:boundary]
+    valid_pieces = pieces[-boundary:]
 
     num_train_samples = num_samples(train_pieces)
     num_valid_samples = num_samples(valid_pieces)
@@ -230,13 +204,6 @@ class AccuracyHistory(keras.callbacks.Callback):
     def on_epoch_end(self, batch, logs={}):
         self.acc.append(logs.get('acc'))
 
-
-def restore_model(epoch, val_loss):
-    checkpoint_path = "Models/"    
-    model = create_model()
-    file = checkpoint_path + 'ckpt.h5weights.%d-%.2f.hdf5' % (epoch, val_loss)
-    model.load_weights(file)
-    return model
 
 
 def make_predictions(cqt_data, midiFilename):

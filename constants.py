@@ -40,25 +40,16 @@ TEST_TIME_SERIES_IN_DIR = "Test-Time-Series-In"
 
 MODEL_CKPT_DIR = "Models"
 
-# corresponds to a max song length of 3 hours
-MAX_START_MS_DIGITS = 7
+KEYBOARD = ["A0", "A#0", "B0", "C1", "C#1", "D1", "D#1", "E1", "F1", "F#1", "G1", "G#1", \
+		    "A1", "A#1", "B1", "C2", "C#2", "D2", "D#2", "E2", "F2", "F#2", "G2", "G#2", \
+		    "A2", "A#2", "B2", "C3", "C#3", "D3", "D#3", "E3", "F3", "F#3", "G3", "G#3", \
+		    "A3", "A#3", "B3", "C4", "C#4", "D4", "D#4", "E4", "F4", "F#4", "G4", "G#4", \
+		    "A4", "A#4", "B4", "C5", "C#5", "D5", "D#5", "E5", "F5", "F#5", "G5", "G#5", \
+		    "A5", "A#5", "B5", "C6", "C#6", "D6", "D#6", "E6", "F6", "F#6", "G6", "G#6", \
+		    "A6", "A#6", "B6", "C7", "C#7", "D7", "D#7", "E7", "F7", "F#7", "G7", "G#7", \
+		    "A7", "A#7", "B7", "C8"]
 
-# """
-# File name templates
-# """
-# FUGUE_WAV_NAME_TEMPLATE = "(Fugue_No\._%s)[_\.].+"
-# PRELUDE_WAV_NAME_TEMPLATE = "(Prelude_No\._%s)[_\.].+"
-
-# # E.g., Fugue_No._1_Slice_458.png (which means 458 milliseconds in)
-# CQT_SLICE_NAME_TEMPLATE = "%s_Slice_(%s).csv"
-
-# # E.g., Fugue_No._1_Pianoroll_6.png
-# PIANOROLL_NAME_TEMPLATE = "%s_Pianoroll_(%s).csv"
-
-# # E.g., Fugue_No._1.mid
-# MIDI_OUT_NAME_TEMPLATE = "%s.mid"
-
-# RESULTS_PATH = "/numericalResults%s.txt"
+PREDICTION_CUTOFF = 0.5
 
 """
 Numerical file parameters
@@ -68,6 +59,7 @@ CQT_SNAPSHOT_WIDTH_IN_PIXELS = 1000 # TODO: is it too high? We should have about
 CQT_SNAPSHOT_HEIGHT_IN_PIXELS = 1000
 
 CQT_SAMPLING_RATE = 344.53125 # (which is 44100 / 128)
+SLICE_SAMPLING_RATE = CQT_SAMPLING_RATE / CQT_SNAPSHOT_WIDTH_IN_SECONDS
 
 CQT_SLICE_RADIUS_IN_PIXELS = 2
 CQT_SLICE_OFFSET_IN_PIXELS = 3
@@ -91,26 +83,21 @@ NUM_KEYS = 88
 DROPOUT_P = 0.25
 NUM_EPOCHS = 10
 BATCH_SIZE = 32
-SEQUENCE_LENGTH_IN_SLICES = 350 # (~5 seconds)
-SEQUENCE_SAMPLE_FREQ_IN_SLICES = 300
+SEQUENCE_LENGTH_IN_SLICES = 360 # (~5 seconds)
+SEQUENCE_SAMPLE_FREQ_IN_SLICES = 3600
 
 NUM_PIECES_TO_TEST = 4
 TEST_SPLIT = 0.25
 VALIDATION_SPLIT = 0.333
 
-# CHECKPOINT_EPOCH = 80
-# CHECKPOINT_VAL_LOSS = 0.49
-
-CHECKPOINT_EPOCH = 100
-CHECKPOINT_VAL_LOSS = 0.17
-
 BINS_PER_OCTAVE = 36
 FILTER_SCALE = 0.5
 HOP_LENGTH = 128
+
+
 
 """
 File conversion parameters
 """
 NOISE_PARAMETER = 0.01
-DEFAULT_SOUND_FONT = '~/.fluidsynth/default_sound_font.sf2'
 SAMPLE_RATE_IN_HZ = 1000

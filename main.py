@@ -1,8 +1,8 @@
+from constants import *
+from util import *
 import os
 import re
-import collections
 import time
-from constants import *
 import cnn
 import pdb
 import argparse

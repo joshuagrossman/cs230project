@@ -1,37 +1,18 @@
+from constants import *
+from util import *
 import sys
 import argparse
 import numpy as np
 import pretty_midi
 import librosa
-from constants import *
 import pdb
-import collections
 import os
-import re
 import multiprocessing as mp
 import time
 import h5py
 import os.path
 import math
 
-def is_valid_file(filepath, extension):
-    """
-    Checks if a file has a valid extension.
-    """
-    file_re = extension
-    
-    if extension=="wav":
-        file_re = re.compile("\.wav$")
-        
-    if extension=="midi":
-        file_re = re.compile("\.midi$")
-        
-    if extension=="h5":
-        file_re = re.compile("\.h5$")
-    
-    if not file_re.search(filepath):
-        return False
-    return True
 
 def convert_wav_to_cqt(wavPath):
     """
