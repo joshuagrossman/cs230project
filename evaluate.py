@@ -49,7 +49,10 @@ def generate_midi(filename, is_WAV=False):
 	# Add the piano instrument to the PrettyMIDI object
 	pm.instruments.append(piano)
 	# Write out the MIDI data
-	pm.write('%s.mid' % filename.replace(".h5", ""))
+	output_file = "%s.mid" % filename.replace(".h5", "")
+	pm.write(output_file)
+
+	return output_file
 
 
 def covert_to_onsets(pianoroll):

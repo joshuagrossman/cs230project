@@ -7,7 +7,6 @@ from keras.layers import *
 from keras.models import Sequential, Model
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
-from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import pretty_midi
 import csv
@@ -135,7 +134,7 @@ def create_model():
     return model
 
 
-def train_model(pieces):
+def train_model(train_pieces, valid_pieces):
     """
     Trains CNN and evaluates it on test set. Checkpoints are saved in a directory.
 
@@ -156,10 +155,6 @@ def train_model(pieces):
                                  save_best_only=False,
                                  mode='auto',
                                  period=1)
-    
-    boundary = math.floor((1.0 - VALIDATION_SPLIT) * len(pieces))
-    train_pieces = pieces[:boundary]
-    valid_pieces = pieces[-boundary:]
 
     num_train_samples = num_samples(train_pieces)
     num_valid_samples = num_samples(valid_pieces)
@@ -174,8 +169,6 @@ def train_model(pieces):
                         epochs=NUM_EPOCHS,
                         verbose=1,
                         callbacks=[history, checkpoint])
-
-    return model, history
 
     
 class AccuracyHistory(keras.callbacks.Callback):
