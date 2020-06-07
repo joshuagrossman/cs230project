@@ -177,20 +177,6 @@ def train_model(pieces):
 
     return model, history
 
-
-def evaluate_model(x_test, y_test, model, history):
-    score = model.evaluate(x_test, y_test, verbose=0)
-
-    print('Train loss: ', score[0])
-    print('Train accuracy: ', score[1])
-
-    print(history.acc)
-
-    plt.plot(range(1, NUM_EPOCHS + 1), history.acc)
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.savefig('test_loss.png')
-
     
 class AccuracyHistory(keras.callbacks.Callback):
     """

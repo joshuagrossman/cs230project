@@ -128,7 +128,6 @@ def get_notes(pianoroll):
                     end = (slice_index - 1) / SLICE_SAMPLING_RATE         # because of the offset
                     completed_notes.append((note_name, start, end))
                     active_notes[key] = 0
-
             prev_slice = slice
 
     return completed_notes
