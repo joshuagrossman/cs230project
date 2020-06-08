@@ -156,14 +156,14 @@ def train_model(train_pieces,
     Inspired by https://github.com/chaumifan/DSL_Final
     """
 
-    model = cnn.create_model()
     if resume:
         model, most_recent = load_best_model(model_ckpt_dir)
         print("Resuming training with weights", most_recent)
     else:
+        model = cnn.create_model()
         print("Training from randomly initialized weights.")
-        opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=(lr / n_epochs))
-        model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
+    opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=(lr / n_epochs))
+    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
 
     print(model.summary())
 
