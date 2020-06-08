@@ -4,20 +4,28 @@ Automatic audio transcription from .wav to MIDI
 
 ## To get started:
 
-run `python main.py sample-cqts sample-pianorolls`
+To train, run `python main.py <processed h5 file directory> train`
+
+To get a sample MIDI transcription, run `python main.py <processed h5 file directory> midi`
+
+The name of the generated file is specified in the console output, which you can scp from your local machine and play back with your default audio player.
 
 ## File structure
 
 ### Scripts
 main.py - main program loop
 
-cnn.py - builds, trains, and runs inference on CNN
+cnn.py - specifies CNN model
+
+train.py - trains the CNN
+
+evaluate.py - functions related to evaluation
 
 constants.py - all constants 
 
-evaluateTestPianoroll.py - evaluates pianoroll generated from inference
+util.py - utility functions
 
-midiToPianoroll.py - conversions between midi and pianoroll slices
+evaluateTestPianoroll.py - evaluates pianoroll generated from inference
 
 wav_to_cqt_slices.py - conversions between wav and constant-q transform slices
 

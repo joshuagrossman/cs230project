@@ -118,7 +118,7 @@ def n_samples(dataset, batch_size=BATCH_SIZE):
     piece_index = 0
     piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
 
-    for sequence_index in range(batch_size):
+    while True:
         if slice_index + SEQUENCE_LENGTH_IN_SLICES > piece_slices.shape[0]:
             # We can't make another full sequence with this piece
             if piece_index == len(dataset) - 1:
