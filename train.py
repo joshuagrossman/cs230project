@@ -98,44 +98,19 @@ def generator(pieces, batch_size=BATCH_SIZE):
             yield batch_X, batch_Y
 
 
-# def n_samples(dataset):
-#     """
-#     Find the number of sequences given by the dataset.
-#     """
-#     total_num_sequences = 0
-#     for piece in dataset:
-#         hf = h5py.File(piece, "r")
-#         num_slices = np.array(hf.get("slice_indices")).shape[0]
-#         num_sequences = (num_slices + SEQUENCE_SAMPLE_FREQ_IN_SLICES - SEQUENCE_LENGTH_IN_SLICES) \
-#             // SEQUENCE_SAMPLE_FREQ_IN_SLICES # trim so that there's a whole number of sequences
-#         total_num_sequences += num_sequences
-
-#     return total_num_sequences
-
 def n_samples(dataset):
-    result = 0
+    """
+    Find the number of sequences given by the dataset.
+    """
+    total_num_sequences = 0
+    for piece in dataset:
+        hf = h5py.File(piece, "r")
+        num_slices = np.array(hf.get("slice_indices")).shape[0]
+        num_sequences = (num_slices + SEQUENCE_SAMPLE_FREQ_IN_SLICES - SEQUENCE_LENGTH_IN_SLICES) \
+            // SEQUENCE_SAMPLE_FREQ_IN_SLICES # trim so that there's a whole number of sequences
+        total_num_sequences += num_sequences
 
-    piece_index = 0
-    print("Getting number of samples for %s..." % dataset[piece_index])
-    piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
-
-    while True:
-        if slice_index + SEQUENCE_LENGTH_IN_SLICES > piece_slices.shape[0]:
-            # We can't make another full sequence with this piece
-            if piece_index == len(dataset) - 1:
-                # We've reached the end of an epoch--don't yield these incomplete batches
-                return result
-
-            # Skipping to the next piece
-            piece_index += 1
-            print("Getting number of samples for %s..." % dataset[piece_index])
-            piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
-
-        # Increment slice index and go to the next sequence
-        slice_index += SEQUENCE_SAMPLE_FREQ_IN_SLICES
-        result += 1
-
-    return result
+    return total_num_sequences
 
 
 def train_model(train_pieces, valid_pieces, batch_size=BATCH_SIZE, n_epochs=NUM_EPOCHS):
