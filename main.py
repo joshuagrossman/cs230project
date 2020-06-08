@@ -34,11 +34,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Trains a CNN.')
     parser.add_argument('data_dir', help='Directory of h5 files')
     parser.add_argument('action', help='What action you want to perform ("train", "test", or "convert")')
+    parser.add_argument('--lr', type=float, default=LEARNING_RATE, dest='lr')
+    parser.add_argument('--n-epochs', type=int, default=NUM_EPOCHS, dest='n_epochs')
+    parser.add_argument('--model-ckpt-dir', type=str, default=MODEL_CKPT_DIR, dest='model_ckpt_dir')
     parser.add_argument('--quick-train', action='store_const', const=True, dest='quick_train',
                         help='Use only two pieces for training and validation')
     parser.add_argument('--onsets-only', action='store_const', const=True, dest='onsets_only',
                         help='Whether to use onsets_only for testing')
     args = parser.parse_args()
+    print(args)
 
     # Get train/dev/test split
     train_pieces, valid_pieces, test_pieces = get_train_valid_test_split(args.data_dir)
@@ -46,9 +50,18 @@ if __name__ == '__main__':
     # Command line argument logic
     if args.action == "train":
         if args.quick_train:
-            train.train_model(train_pieces[:2], valid_pieces[:2], batch_size=8, n_epochs=10)
+            train.train_model(train_pieces[:2],
+                              valid_pieces[:2],
+                              batch_size=8,
+                              n_epochs=args.n_epochs,
+                              lr=args.lr,
+                              model_ckpt_dir=args.model_ckpt_dir)
         else:
-            train.train_model(train_pieces, valid_pieces)
+            train.train_model(train_pieces,
+                              valid_pieces,
+                              n_epochs=args.n_epochs,
+                              lr=args.lr,
+                              model_ckpt_dir=args.model_ckpt_dir)
     elif args.action == "test":
         print("Evaluating...")
         if args.onsets_only:

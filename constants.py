@@ -5,42 +5,13 @@ import os
 """
 Directories
 """
-HOME = os.path.expanduser("~").replace("\\", "/")
-
-#WTC1_WAV_DIR = "/WTC1-WAV"
-#WTC2_WAV_DIR = "/WTC2-WAV"
-
-WTC1_MIDI_DIR = "/WTC1-MIDI"
-WTC2_MIDI_DIR = "/WTC2-MIDI"
-
-# CQT heatmap slices for CNN training
-TRAIN_CQT_CNN_SLICES_IN_DIR = "Train-CQT-CNN-Slices-In"
-
-# Time series text data for full-WAV CQT
-TRAIN_TIME_SERIES_IN_DIR = "Train-Time-Series-In"
-
-# CNN output on training data, if needed
-TRAIN_PIANOROLL_OUT_DIR = "Train-Pianoroll-Out"
-
-# CNN output on test data
-TEST_PIANOROLL_OUT_DIR = "Test-Pianoroll-Out"
-
-# What the CNN output is supposed to be
-TEST_PIANOROLL_GOLDEN_DIR = "Test-Pianoroll-Golden"
-
-# CNN output, converted to MIDI for human listening
-TEST_MIDI_OUT_DIR = "Test-MIDI-Out"
-
-# CQT heatmap slices for CNN
-TEST_CQT_CNN_SLICES_IN_DIR = "Test-CQT-CNN-Slices-In"
-
-# Time series text data for full-WAV CQT
-TEST_TIME_SERIES_IN_DIR = "Test-Time-Series-In"
-
 MODEL_CKPT_DIR = "Models"
 
 PREDICTED_HF_NAME = "predicted.h5"
 
+"""
+Misc
+"""
 KEYBOARD = ["A0", "A#0", "B0", "C1", "C#1", "D1", "D#1", "E1", "F1", "F#1", "G1", "G#1", \
 		    "A1", "A#1", "B1", "C2", "C#2", "D2", "D#2", "E2", "F2", "F#2", "G2", "G#2", \
 		    "A2", "A#2", "B2", "C3", "C#3", "D3", "D#3", "E3", "F3", "F#3", "G3", "G#3", \
@@ -68,10 +39,6 @@ CQT_SLICE_WIDTH_IN_PIXELS = 1 + 2 * CQT_SLICE_RADIUS_IN_PIXELS
 
 CQT_SLICE_HEIGHT_IN_PIXELS = CQT_SNAPSHOT_HEIGHT_IN_PIXELS
 
-# TRAIN_PIANOROLL_WIDTH_IN_PIXELS = 1
-# TEST_PIANOROLL_WIDTH_IN_SECONDS = 5
-# TEST_PIANOROLL_WIDTH_IN_PIXELS = float(TEST_PIANOROLL_WIDTH_IN_SECONDS) * TRAIN_PIANOROLL_WIDTH_IN_PIXELS / CQT_SLICE_WIDTH_IN_PIXELS * CQT_SNAPSHOT_WIDTH_IN_PIXELS / CQT_SNAPSHOT_WIDTH_IN_SECONDS
-
 """
 Hyperparameters
 """
@@ -83,6 +50,7 @@ NUM_RGB_CHANNELS = 1
 NUM_KEYS = 88
 DROPOUT_P = 0.25
 NUM_EPOCHS = 10
+LEARNING_RATE = 0.001
 BATCH_SIZE = 32
 SEQUENCE_LENGTH_IN_SLICES = 360 # (~5 seconds), sequence length must be divisible by 3
 SEQUENCE_SAMPLE_FREQ_IN_SLICES = 720
@@ -92,8 +60,6 @@ TRAIN_VALID_TEST_SPLIT = (0.5, 0.25, 0.25)
 BINS_PER_OCTAVE = 36
 FILTER_SCALE = 0.5
 HOP_LENGTH = 128
-
-
 
 """
 File conversion parameters
