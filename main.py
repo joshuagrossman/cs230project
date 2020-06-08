@@ -42,7 +42,6 @@ if __name__ == '__main__':
     parser.add_argument('--onsets-only', action='store_const', const=True, dest='onsets_only',
                         help='Whether to use onsets_only for testing')
     args = parser.parse_args()
-    print(args)
 
     # Get train/dev/test split
     train_pieces, valid_pieces, test_pieces = get_train_valid_test_split(args.data_dir)
