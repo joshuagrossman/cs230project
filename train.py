@@ -116,6 +116,7 @@ def n_samples(dataset):
     result = 0
 
     piece_index = 0
+    print("Getting number of samples for %s..." % dataset[piece_index])
     piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
 
     while True:
@@ -127,7 +128,7 @@ def n_samples(dataset):
 
             # Skipping to the next piece
             piece_index += 1
-            print('next piece')
+            print("Getting number of samples for %s..." % dataset[piece_index])
             piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
 
         # Increment slice index and go to the next sequence
