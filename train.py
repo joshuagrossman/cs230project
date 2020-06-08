@@ -132,8 +132,8 @@ def train_model(train_pieces,
     else:
         model = cnn.create_model()
         print("Training from randomly initialized weights.")
-        opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=(lr / n_epochs))
-        model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
+    opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=(lr / n_epochs))
+    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
 
     print(model.summary())
 
