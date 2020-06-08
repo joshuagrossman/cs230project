@@ -31,6 +31,7 @@ def get_prediction(model, cqt, weights_file, cqt_file):
     if os.path.exists(PREDICTED_HF_NAME):
         predicted_hf = h5py.File(PREDICTED_HF_NAME, "r")
         predicted = predicted_hf.get(cqt_file + weights_file)
+        predicted_hf.close()
     if not predicted:
         predicted = predict_pianoroll(model, cqt)
 
