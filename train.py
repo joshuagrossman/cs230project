@@ -112,7 +112,7 @@ def generator(pieces, batch_size=BATCH_SIZE):
 
 #     return total_num_sequences
 
-def n_samples(dataset, batch_size=BATCH_SIZE):
+def n_samples(dataset):
     result = 0
 
     piece_index = 0
@@ -127,6 +127,7 @@ def n_samples(dataset, batch_size=BATCH_SIZE):
 
             # Skipping to the next piece
             piece_index += 1
+            print('next piece')
             piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(dataset[piece_index])
 
         # Increment slice index and go to the next sequence
