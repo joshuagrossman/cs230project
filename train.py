@@ -158,8 +158,8 @@ def train_model(train_pieces, valid_pieces, batch_size=BATCH_SIZE, n_epochs=NUM_
                                  mode='auto',
                                  period=1)
 
-    n_train_samples = n_samples(train_pieces, batch_size=batch_size)
-    n_valid_samples = n_samples(valid_pieces, batch_size=batch_size)
+    n_train_samples = n_samples(train_pieces)
+    n_valid_samples = n_samples(valid_pieces)
 
     print("Number of training batches:", n_train_samples // batch_size)
     print("Number of validation batches:", n_valid_samples // batch_size)
