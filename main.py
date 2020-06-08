@@ -34,13 +34,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Trains a CNN.')
     parser.add_argument('data_dir', help='Directory of h5 files')
     parser.add_argument('action', help='What action you want to perform ("train", "test", or "convert")')
+    parser.add_argument('model_ckpt_dir', help='The directory containing the model weights you want to use')
     parser.add_argument('--lr', type=float, default=LEARNING_RATE, dest='lr')
     parser.add_argument('--n-epochs', type=int, default=NUM_EPOCHS, dest='n_epochs')
-    parser.add_argument('--model-ckpt-dir', type=str, default=MODEL_CKPT_DIR, dest='model_ckpt_dir')
-    parser.add_argument('--quick-train', action='store_const', const=True, dest='quick_train',
+    parser.add_argument('--resume', action='store_const', const=True, dest='resume',
+                        help='Resume training from last checkpoint in model_ckpt_dir')
+    parser.add_argument('--quick-train', action='store_const', const=False, dest='quick_train',
                         help='Use only two pieces for training and validation')
-    parser.add_argument('--onsets-only', action='store_const', const=True, dest='onsets_only',
+    parser.add_argument('--onsets-only', action='store_const', const=False, dest='onsets_only',
                         help='Whether to use onsets_only for testing')
+    parser.add_argument('--test-set', action='store_const', const=False, dest='test_set',
+                        help='Whether to evaluate the test set')
     args = parser.parse_args()
 
     # Get train/dev/test split
@@ -54,21 +58,24 @@ if __name__ == '__main__':
                               batch_size=8,
                               n_epochs=args.n_epochs,
                               lr=args.lr,
-                              model_ckpt_dir=args.model_ckpt_dir)
+                              model_ckpt_dir=args.model_ckpt_dir,
+                              resume=args.resume)
         else:
             train.train_model(train_pieces,
                               valid_pieces,
                               n_epochs=args.n_epochs,
                               lr=args.lr,
-                              model_ckpt_dir=args.model_ckpt_dir)
+                              model_ckpt_dir=args.model_ckpt_dir,
+                              resume=args.resume)
     elif args.action == "test":
         print("Evaluating...")
+        evaluation_set = test_pieces if args.test_set else valid_pieces
         if args.onsets_only:
-            l2 = evaluate.evaluate_onsets(valid_pieces)
+            l2 = evaluate.evaluate_onsets(evaluation_set, models_dir=args.model_ckpt_dir)
         else:
-            l2 = evaluate.evaluate_no_onsets(valid_pieces)
+            l2 = evaluate.evaluate_no_onsets(evaluation_set, models_dir=args.model_ckpt_dir)
         print("L2 score:", l2)
     elif args.action == "midi":
         print("Transcribing first validation piece to MIDI...")
-        output_file = evaluate.generate_midi(valid_pieces[0], is_WAV=False)
+        output_file = evaluate.generate_midi(valid_pieces[0], is_WAV=False, models_dir=args.model_ckpt_dir)
         print("Generated MIDI file:", output_file)

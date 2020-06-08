@@ -43,7 +43,7 @@ def get_prediction(model, cqt, weights_file, cqt_file):
     return predicted
 
 
-def generate_midi(filename, is_WAV=False):
+def generate_midi(filename, is_WAV=False, models_dir=MODEL_CKPT_DIR):
     if is_WAV:
         assert(is_valid_file(filename, "wav"))
         cqt = convert_wav_to_cqt(wavPath)
@@ -58,7 +58,7 @@ def generate_midi(filename, is_WAV=False):
     piano_program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
     piano = pretty_midi.Instrument(program=piano_program)
 
-    model, weights_file = load_best_model()
+    model, weights_file = load_best_model(models_dir)
     pianoroll = get_prediction(model, cqt, weights_file, filename)
     notes_list = get_notes(pianoroll)
 
@@ -144,7 +144,7 @@ def calculate_percent_loss(pianoroll_1, pianoroll_2, length):
     return total_loss / max_total_loss
 
 
-def get_pianorolls(filename):
+def get_pianorolls(filename, models_dir=MODEL_CKPT_DIR):
     """
     Get the golden and predicted pianorolls given an h5 file
     containing the cqt and pianoroll, as well as their length.
@@ -154,7 +154,7 @@ def get_pianorolls(filename):
     cqt = np.array(raw_data_hf.get("cqt"))
 
     # Evaluate on precision and recall
-    model, weights_file = load_best_model()
+    model, weights_file = load_best_model(models_dir)
     predicted = get_prediction(model, cqt, weights_file, filename)
 
     # Get golden
@@ -164,7 +164,7 @@ def get_pianorolls(filename):
     return predicted, golden, length
 
 
-def evaluate_onsets(filenames):
+def evaluate_onsets(filenames, models_dir):
     """
     Evaluates the accuracy of predictions using our custom function.
 
@@ -174,7 +174,7 @@ def evaluate_onsets(filenames):
     precisions = []
     recalls = []
     for filename in filenames:
-        predicted, golden, length = get_pianorolls(filename)
+        predicted, golden, length = get_pianorolls(filename, models_dir)
 
         print("Calculating loss for %s..." % filename)
         covert_to_onsets(predicted)
@@ -193,7 +193,7 @@ def evaluate_onsets(filenames):
     return harmonic_mean((np.mean(precision), np.mean(recall)))
 
 
-def evaluate_no_onsets(filenames):
+def evaluate_no_onsets(filenames, models_dir):
     """
     Evaluates the accuracy of predictions using the percent overlap in pianoroll.
 
@@ -204,7 +204,7 @@ def evaluate_no_onsets(filenames):
     total_predicted = 0
     total_golden = 0
     for filename in filenames:
-        predicted, golden, length = get_pianorolls(filename)
+        predicted, golden, length = get_pianorolls(filename, models_dir)
 
         # Trim the pianorolls to the same size (some clipping may have occurred during prediction)
         predicted = predicted[:length, :]
