@@ -21,9 +21,13 @@ def get_data(piece):
     return slices, cqt, pianoroll, slice_index
 
 
-def load_best_model():
-    checkpoint_filenames = os.listdir(MODEL_CKPT_DIR)
-    most_recent = os.path.join(MODEL_CKPT_DIR, max(checkpoint_filenames))
+def load_best_model(dir=MODEL_CKPT_DIR):
+    checkpoint_filenames = os.listdir(dir)
+    if not checkpoint_filenames:
+        raise Exception("The specified weights directory %s is empty. \
+                         Try either training from scratch or specifying a different directory." % dir)
+
+    most_recent = os.path.join(dir, max(checkpoint_filenames))
 
     model = cnn.create_model()
     print("Loading weights from %s..." % most_recent)

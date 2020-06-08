@@ -143,7 +143,13 @@ def n_samples_manual(dataset):
     return result
 
 
-def train_model(train_pieces, valid_pieces, batch_size=BATCH_SIZE, n_epochs=NUM_EPOCHS, lr=LEARNING_RATE, model_ckpt_dir=MODEL_CKPT_DIR):
+def train_model(train_pieces,
+                valid_pieces,
+                batch_size=BATCH_SIZE,
+                n_epochs=NUM_EPOCHS,
+                lr=LEARNING_RATE,
+                model_ckpt_dir=MODEL_CKPT_DIR,
+                resume=True):
     """
     Trains CNN and evaluates it on test set. Checkpoints are saved in a directory.
 
@@ -151,8 +157,13 @@ def train_model(train_pieces, valid_pieces, batch_size=BATCH_SIZE, n_epochs=NUM_
     """
 
     model = cnn.create_model()
-    opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=(lr / n_epochs))
-    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
+    if resume:
+        model, most_recent = load_best_model(model_ckpt_dir)
+        print("Resuming training with weights", most_recent)
+    else:
+        print("Training from randomly initialized weights.")
+        opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=(lr / n_epochs))
+        model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
 
     print(model.summary())
 
@@ -164,13 +175,8 @@ def train_model(train_pieces, valid_pieces, batch_size=BATCH_SIZE, n_epochs=NUM_
                                  mode='auto',
                                  period=1)
 
-    print("Testing n_samples algorithms:")
     n_train_samples = n_samples(train_pieces)
     n_valid_samples = n_samples(valid_pieces)
-    print("\nNow manual:")
-    a = n_samples_manual(train_pieces)
-    a = n_samples_manual(valid_pieces)
-    return
 
     print("Number of training batches:", n_train_samples // batch_size)
     print("Number of validation batches:", n_valid_samples // batch_size)
