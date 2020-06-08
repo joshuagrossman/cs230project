@@ -7,6 +7,9 @@ Directories
 """
 MODEL_CKPT_DIR = "Models"
 
+# Start with Z so that any "resumes" come lexographically before this one
+CHECKPOINT_FILE_TEMPLATE = "Z.{epoch:02d}-{val_loss:.2f}.hdf5"
+
 PREDICTED_HF_NAME = "predicted.h5"
 
 """

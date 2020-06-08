@@ -109,7 +109,6 @@ def n_samples(dataset):
         num_sequences = (num_slices + SEQUENCE_SAMPLE_FREQ_IN_SLICES - SEQUENCE_LENGTH_IN_SLICES) \
             // SEQUENCE_SAMPLE_FREQ_IN_SLICES # trim so that there's a whole number of sequences
         total_num_sequences += num_sequences
-        print("Number of sequences for piece %s: %d" % (piece, num_sequences))
 
     return total_num_sequences
 
@@ -123,24 +122,23 @@ def train_model(train_pieces,
                 model_ckpt_dir=MODEL_CKPT_DIR,
                 resume=True):
     """
-    Trains CNN and evaluates it on test set. Checkpoints are saved in a directory.
-
-    Inspired by https://github.com/chaumifan/DSL_Final
+    Trains CNN and evaluates it on test set. Checkpoints are saved in model_ckpt_dir.
     """
-
     if resume:
         model, most_recent = load_best_model(model_ckpt_dir)
+        last_complete_epoch = int(most_recent.split("-")[0].split(".")[1])
+        n_epochs -= last_complete_epoch
         print("Resuming training with weights", most_recent)
     else:
         model = cnn.create_model()
         print("Training from randomly initialized weights.")
-    opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=(lr / n_epochs))
-    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
+        opt = Adam(lr=lr, beta_1=0.9, beta_2=0.999, decay=(lr / n_epochs))
+        model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
 
     print(model.summary())
 
     history = AccuracyHistory()
-    checkpoint = ModelCheckpoint(os.path.join(model_ckpt_dir, 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
+    checkpoint = ModelCheckpoint(os.path.join(model_ckpt_dir, ("Num_epochs_to_go_%02d" % n_epochs) + CHECKPOINT_FILE_TEMPLATE),
                                  monitor='val_loss',
                                  verbose=1,
                                  save_best_only=False,
