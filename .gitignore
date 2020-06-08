@@ -4,7 +4,7 @@ Train-*
 WTC*
 results_from_friday*
 .ipynb*
-Models
+Models*
 __pycache__
 sample-cqt-dir
 sample-midi-dir
@@ -24,3 +24,4 @@ sample-cqts
 sample-pianorolls
 sample-h5
 *.mid
+predicted.h5

@@ -1,7 +1,7 @@
 from constants import *
 from util import *
 from statistics import harmonic_mean
-import cnn
+import train
 import clean_data
 import numpy as np
 import pretty_midi
@@ -22,43 +22,63 @@ NOT_FOUND_LOSS = 167.0
 MILLISECONDS_PER_SLICE = 1.0 / SLICE_SAMPLING_RATE * 1000
 
 
+def get_prediction(model, cqt, weights_file, cqt_file):
+    """
+    Get the predicted pianoroll given 
+    """
+    # First see if we've already evaluated this file using these weights
+    predicted = None
+    if os.path.exists(PREDICTED_HF_NAME):
+        predicted_hf = h5py.File(PREDICTED_HF_NAME, "r")
+        predicted = predicted_hf.get(cqt_file + weights_file)
+    if not predicted:
+        predicted = predict_pianoroll(model, cqt)
+
+    # Write the predictions to disk just in case we need to analyze or predict again
+    predicted_hf = h5py.File(PREDICTED_HF_NAME, 'w')
+    predicted_hf.create_dataset(cqt_file + weights_file, data=predicted)
+    predicted_hf.close()
+
+    return predicted
+
+
 def generate_midi(filename, is_WAV=False):
-	if is_WAV:
-		assert(is_valid_file(filename, "wav"))
-		cqt = convert_wav_to_cqt(wavPath)
-	else:
-		assert(is_valid_file(filename, "h5"))
-		hf = h5py.File(filename, "r")
-		cqt = np.array(hf.get("cqt"))
+    if is_WAV:
+        assert(is_valid_file(filename, "wav"))
+        cqt = convert_wav_to_cqt(wavPath)
+    else:
+        assert(is_valid_file(filename, "h5"))
+        hf = h5py.File(filename, "r")
+        cqt = np.array(hf.get("cqt"))
 
-	# Create a PrettyMIDI object
-	pm = pretty_midi.PrettyMIDI()
-	# Create an Instrument instance for a cello instrument
-	piano_program = pretty_midi.instrument_name_to_program('Piano')
-	piano = pretty_midi.Instrument(program=piano_program)
+    # Create a PrettyMIDI object
+    pm = pretty_midi.PrettyMIDI()
+    # Create an Instrument instance for a cello instrument
+    piano_program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
+    piano = pretty_midi.Instrument(program=piano_program)
 
-	model = load_best_model()
-	pianoroll = predicted_pianoroll(model, cqt)
-	notes_list = get_notes(pianoroll)
+    model, weights_file = load_best_model()
+    pianoroll = get_prediction(model, cqt, weights_file, filename)
+    notes_list = get_notes(pianoroll)
 
-	for note_name, start, end in notes_list:
-	    note_number = pretty_midi.note_name_to_number(note_name)
-	    note = pretty_midi.Note(velocity=100, pitch=note_number, start=start, end=end)
-	    piano.notes.append(note)
+    for note_name, start, end in notes_list:
+        note_number = pretty_midi.note_name_to_number(note_name)
+        note = pretty_midi.Note(velocity=100, pitch=note_number, start=start, end=end)
+        piano.notes.append(note)
 
-	# Add the piano instrument to the PrettyMIDI object
-	pm.instruments.append(piano)
-	# Write out the MIDI data
-	output_file = "%s.mid" % filename.replace(".h5", "")
-	pm.write(output_file)
+    # Add the piano instrument to the PrettyMIDI object
+    pm.instruments.append(piano)
+    # Write out the MIDI data
+    output_file = "%s.mid" % filename.replace(".h5", "")
+    pm.write(output_file)
 
-	return output_file
+    return output_file
 
 
 def covert_to_onsets(pianoroll):
-	"""
-	Converts output pianoroll into just a 1 followed by 0s for onsets.
-	"""
+    """
+    Converts output pianoroll into just a 1 followed by 0s for onsets.
+    """
     # Iterate through keyboard note by keyboard note
     for row_index in range(pianoroll.shape[1]):
         is_prev_on = False
@@ -81,7 +101,7 @@ def calculate_percent_loss(pianoroll_1, pianoroll_2, length):
         # Calculate loss independently within each row
         for slice_index_1 in range(pianoroll_1.shape[0]):
             if slice_index_1 == length:
-            	break
+                break
 
             is_on = pianoroll_1[slice_index_1, row_index]
             if is_on:
@@ -124,72 +144,76 @@ def calculate_percent_loss(pianoroll_1, pianoroll_2, length):
 
 
 def get_pianorolls(filename):
-	"""
-	Get the golden and predicted pianorolls given an h5 file
-	containing the cqt and pianoroll, as well as their length.
-	"""
-	assert(is_valid_file(filename, "h5"))
-	hf = h5py.File(filename, "r")
-	cqt = np.array(hf.get("cqt"))
+    """
+    Get the golden and predicted pianorolls given an h5 file
+    containing the cqt and pianoroll, as well as their length.
+    """
+    assert(is_valid_file(filename, "h5"))
+    raw_data_hf = h5py.File(filename, "r")
+    cqt = np.array(raw_data_hf.get("cqt"))
 
     # Evaluate on precision and recall
-    model = load_best_model()
-	predicted = predicted_pianoroll(model, cqt)
-	golden = np.array(hf.get("pianoroll"))
+    model, weights_file = load_best_model()
+    predicted = get_prediction(model, cqt, weights_file, filename)
+
+    # Get golden
+    golden = np.array(raw_data_hf.get("pianoroll")).T
     length = min(predicted.shape[0], golden.shape[0])
 
     return predicted, golden, length
 
 
 def evaluate_onsets(filenames):
-	"""
-	Evaluates the accuracy of predictions using our custom function.
+    """
+    Evaluates the accuracy of predictions using our custom function.
 
-	Uses average precision and recall over all files in the test set,
-	which implicitly assumes that most pieces have roughly the same size.
-	"""
-	precisions = []
-	recalls = []
-	for filename in filenames:
-		predicted, golden, length = get_pianorolls(filename)
+    Uses average precision and recall over all files in the test set,
+    which implicitly assumes that most pieces have roughly the same size.
+    """
+    precisions = []
+    recalls = []
+    for filename in filenames:
+        predicted, golden, length = get_pianorolls(filename)
 
-	    # Precision--iterate over output
-	    precision = 1.0 - calculate_percent_loss(predicted, golden, length)
+        print("Calculating loss for %s..." % filename)
+        covert_to_onsets(predicted)
+        covert_to_onsets(golden)
 
-	    # Recall-iterate over golden
-	    recall = 1.0 - calculate_percent_loss(golden, predicted, length)
+        # Precision--iterate over output
+        precision = 1.0 - calculate_percent_loss(predicted, golden, length)
 
-	    precisions.append(precision)
-	    recall.append(recall)
+        # Recall-iterate over golden
+        recall = 1.0 - calculate_percent_loss(golden, predicted, length)
+        print("Done.")
+
+        precisions.append(precision)
+        recall.append(recall)
 
     return harmonic_mean((np.mean(precision), np.mean(recall)))
 
 
 def evaluate_no_onsets(filenames):
-	"""
-	Evaluates the accuracy of predictions using the percent overlap in pianoroll.
+    """
+    Evaluates the accuracy of predictions using the percent overlap in pianoroll.
 
-	Keeps track of numerator and denominators separately and uses harmonic_mean
-	to distill these down to a single metric.
-	"""
-	conjunction = 0
-	total_predicted = 0
-	total_golden = 0
-	for filename in filenames:
-		predicted, golden, length = get_pianorolls(filename)
+    Keeps track of numerator and denominators separately and uses harmonic_mean
+    to distill these down to a single metric.
+    """
+    conjunction = 0
+    total_predicted = 0
+    total_golden = 0
+    for filename in filenames:
+        predicted, golden, length = get_pianorolls(filename)
 
-		# Trim the pianorolls to the same size (some clipping may have occurred during prediction)
-		predicted = predicted[:length, :]
-		golden = golden[:length, :]
+        # Trim the pianorolls to the same size (some clipping may have occurred during prediction)
+        predicted = predicted[:length, :]
+        golden = golden[:length, :]
 
-		covert_to_onsets(predicted)
-		covert_to_onsets(golden)
+        conjunction += np.sum(np.logical_and(predicted, golden))
+        total_predicted += np.sum(predicted)
+        total_golden += np.sum(golden)
 
-		conjunction += np.sum(np.logical_and(predicted, golden))
-		total_predicted += np.sum(predicted)
-		total_golden += np.sum(golden)
+    precision = conjunction / total_predicted
+    recall = conjunction / total_golden
 
-	precision = conjunction / total_predicted
-	recall = conjunction / total_golden
-
-	return harmonic_mean((precision, recall))
+    return harmonic_mean((precision, recall))

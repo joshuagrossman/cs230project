@@ -8,32 +8,6 @@ import h5py
 import re
 from keras.models import Sequential, Model
 
-class threadsafe_iter:
-    """Takes an iterator/generator and makes it thread-safe by
-    serializing call to the `next` method of given iterator/generator.
-    """
-
-    def __init__(self, it):
-        self.it = it
-        self.lock = threading.Lock()
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        with self.lock:
-            return self.it.__next__()
-
-
-def threadsafe_generator(f):
-    """A decorator that takes a generator function and makes it thread-safe.
-    """
-
-    def g(*a, **kw):
-        return threadsafe_iter(f(*a, **kw))
-
-    return g
-
 
 def get_data(piece):
     assert(is_valid_file(piece, "h5"))
@@ -49,14 +23,16 @@ def get_data(piece):
 
 def load_best_model():
     checkpoint_filenames = os.listdir(MODEL_CKPT_DIR)
-    most_recent = max(checkpoint_filenames)
+    most_recent = os.path.join(MODEL_CKPT_DIR, max(checkpoint_filenames))
 
     model = cnn.create_model()
+    print("Loading weights from %s..." % most_recent)
     model.load_weights(most_recent)
-    return model
+    print("Done.")
+    return model, most_recent
 
 
-def predicted_pianoroll(model, cqt):
+def predict_pianoroll(model, cqt):
     """
     Transcribe the whole CQT by cutting it up into fixed-length sequences.
 
@@ -67,23 +43,26 @@ def predicted_pianoroll(model, cqt):
     cqt = cqt[:, :n_cols].reshape((CONTEXT_WINDOW_ROWS, n_slices, CONTEXT_WINDOW_COLS)).swapaxes(0, 1)
     # New cqt shape is (n_slices, CONTEXT_WINDOW_ROWS, CONTEXT_WINDOW_COLS)
 
-    seq_sampling_freq = SEQUENCE_LENGTH_IN_SLICES / 3
+    seq_sampling_freq = SEQUENCE_LENGTH_IN_SLICES // 3
     n_segments = n_slices // seq_sampling_freq
     n_sequences = n_segments - 2
 
     # Perform predictions
+    print("Predicting %d sequences of pianoroll..." % n_sequences)
     input = np.zeros((n_sequences, SEQUENCE_LENGTH_IN_SLICES, CONTEXT_WINDOW_ROWS, CONTEXT_WINDOW_COLS, 1))
     output = np.zeros((n_sequences, SEQUENCE_LENGTH_IN_SLICES, NUM_KEYS))
     for sequence_index in range(n_sequences):
         sequence = cqt[(sequence_index * seq_sampling_freq):(sequence_index * seq_sampling_freq + SEQUENCE_LENGTH_IN_SLICES), :, :]
         input[sequence_index, :, :, :, 0] = sequence
-
     for sequence_index in range(n_sequences):
-        prediction = model.predict(input[sequence_index, :, :, :, :])
+        prediction = model.predict(input[sequence_index:(sequence_index + 1), :, :, :, :])
         binarized = np.where(prediction > PREDICTION_CUTOFF, 1, 0)
         output[sequence_index, :, :] = binarized
+        print("Finished %d/%d" % (sequence_index + 1, n_sequences), end="\r")
+    print("\nDone.")
 
     # Stitch together the predictions
+    print("Stiching together the predictions...")
     pianoroll = np.zeros((n_slices, NUM_KEYS))
 
     # Start with the first and last segments
@@ -101,8 +80,9 @@ def predicted_pianoroll(model, cqt):
         curr_seq_segment = output[seq_index, seq_sampling_freq:(2 * seq_sampling_freq), :]
         next_seq_segment = output[seq_index + 1, :seq_sampling_freq, :]
 
-        notes = prev_seq_segment | curr_seq_segment | next_seq_segment
+        notes = np.logical_or(prev_seq_segment, np.logical_or(curr_seq_segment, next_seq_segment))
         pianoroll[((seq_index + 1)*seq_sampling_freq):((seq_index + 2)*seq_sampling_freq), :] = notes
+    print("Done.")
 
     return pianoroll
 
@@ -112,12 +92,12 @@ def get_notes(pianoroll):
     Convert pianoroll to a list of notes for MIDI generation.
     """
     completed_notes = []
-    active_notes = np.zero((NUM_KEYS,)) # each element will be the slice_index it starts at
+    active_notes = np.zeros((NUM_KEYS,)) # each element will be the slice_index it starts at
     prev_slice = np.zeros((NUM_KEYS,))
 
     for slice_index in range(1, pianoroll.shape[0] + 1): # offset by 1 so that anything other than 0 is True
         slice = pianoroll[slice_index - 1, :]
-        if not np.equal(slice, prev_slice):
+        if not np.array_equal(slice, prev_slice):
             # Notes have changed. Update active_notes
             for key in range(NUM_KEYS):
                 if slice[key] and not prev_slice[key]:

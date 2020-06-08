@@ -1,7 +1,7 @@
 from constants import *
 from util import *
 import evaluate
-import cnn
+import train
 import os
 import re
 import time
@@ -13,8 +13,9 @@ import random
 
 def get_train_valid_test_split(data_dir):
     # Get h5 files corresponding to pieces
-    piece_paths = [os.path.join(data_dir, h5_file) \
-        for h5_file in os.listdir(data_dir) if "Chamber" not in h5_file]
+    piece_paths = [os.path.join(data_dir, file) \
+        for file in os.listdir(data_dir) \
+        if "Chamber" not in file and is_valid_file(file, "h5")]
 
     # Shuffle it the same every time
     random.Random(7).shuffle(piece_paths)
@@ -33,9 +34,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Trains a CNN.')
     parser.add_argument('data_dir', help='Directory of h5 files')
     parser.add_argument('action', help='What action you want to perform ("train", "test", or "convert")')
-    parser.add_argument('--quick-train', dest='quick_train', action='store_const',
+    parser.add_argument('--quick-train', action='store_const', const=True, dest='quick_train',
                         help='Use only two pieces for training and validation')
-    parser.add_argument('--onsets-only', dest='onsets_only', action='store_const',
+    parser.add_argument('--onsets-only', action='store_const', const=True, dest='onsets_only',
                         help='Whether to use onsets_only for testing')
     args = parser.parse_args()
 
@@ -45,9 +46,9 @@ if __name__ == '__main__':
     # Command line argument logic
     if args.action == "train":
         if args.quick_train:
-            cnn.train_model(train_pieces[:2], valid_pieces[:2])
+            train.train_model(train_pieces[:2], valid_pieces[:2], batch_size=8, n_epochs=10)
         else:
-            cnn.train_model(train_pieces, valid_pieces)
+            train.train_model(train_pieces, valid_pieces)
     elif args.action == "test":
         print("Evaluating...")
         if args.onsets_only:
@@ -57,5 +58,5 @@ if __name__ == '__main__':
         print("L2 score:", l2)
     elif args.action == "midi":
         print("Transcribing first validation piece to MIDI...")
-        output_file = generate_midi(valid_pieces[0], is_WAV=False)
+        output_file = evaluate.generate_midi(valid_pieces[0], is_WAV=False)
         print("Generated MIDI file:", output_file)

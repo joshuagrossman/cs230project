@@ -1,5 +1,4 @@
 import os
-import re
 
 # TODO: fold in golden pianoroll for train (1 pixel wide) and test (many pixels (5ish seconds) wide)
 
@@ -39,6 +38,8 @@ TEST_CQT_CNN_SLICES_IN_DIR = "Test-CQT-CNN-Slices-In"
 TEST_TIME_SERIES_IN_DIR = "Test-Time-Series-In"
 
 MODEL_CKPT_DIR = "Models"
+
+PREDICTED_HF_NAME = "predicted.h5"
 
 KEYBOARD = ["A0", "A#0", "B0", "C1", "C#1", "D1", "D#1", "E1", "F1", "F#1", "G1", "G#1", \
 		    "A1", "A#1", "B1", "C2", "C#2", "D2", "D#2", "E2", "F2", "F#2", "G2", "G#2", \
@@ -83,10 +84,10 @@ NUM_KEYS = 88
 DROPOUT_P = 0.25
 NUM_EPOCHS = 10
 BATCH_SIZE = 32
-SEQUENCE_LENGTH_IN_SLICES = 360 # (~5 seconds)
-SEQUENCE_SAMPLE_FREQ_IN_SLICES = 3600
+SEQUENCE_LENGTH_IN_SLICES = 360 # (~5 seconds), sequence length must be divisible by 3
+SEQUENCE_SAMPLE_FREQ_IN_SLICES = 720
 
-TRAIN_VALID_TEST_SPLIT = (5/7, 1/7, 1/7)
+TRAIN_VALID_TEST_SPLIT = (0.5, 0.25, 0.25)
 
 BINS_PER_OCTAVE = 36
 FILTER_SCALE = 0.5
