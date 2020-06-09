@@ -126,8 +126,11 @@ def train_model(train_pieces,
     """
     if resume:
         model, most_recent = load_best_model(model_ckpt_dir)
-        last_complete_epoch = int(most_recent.split("-")[0].split(".")[1])
-        n_epochs -= last_complete_epoch
+        if "Num_epochs_to_go_" in most_recent:
+            n_epochs = int(most_recent.split("Num_epochs_to_go_")[1].split("Z")[0])
+        else:
+            last_complete_epoch = int(most_recent.split("-")[0].split(".")[1])
+            n_epochs -= last_complete_epoch
         print("Resuming training with weights", most_recent)
     else:
         model = cnn.create_model()

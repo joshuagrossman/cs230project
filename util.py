@@ -18,6 +18,12 @@ def get_data(piece):
     pianoroll = np.array(hf.get("pianoroll"))
     slice_index = 0
 
+    # Change the cqt and pianoroll data to reflect a bunch of scales with no signal noise
+    n_samples = cqt.shape[1]
+    n_samples_pianoroll = pianoroll.shape[1]
+    if n_samples != n_samples_pianoroll:
+        raise Exception("CQT and pianoroll don't have the same number of samples: %d, %d" % (n_samples, n_samples_pianoroll))
+
     return slices, cqt, pianoroll, slice_index
 
 
@@ -108,8 +114,8 @@ def get_notes(pianoroll):
                     active_notes[key] = slice_index
                 elif prev_slice[key] and not slice[key]:
                     note_name = KEYBOARD[key]
-                    start = (active_notes[key] - 1) / SLICE_SAMPLING_RATE # because of the offset
-                    end = (slice_index - 1) / SLICE_SAMPLING_RATE         # because of the offset
+                    start = (active_notes[key] - 1) / SLICE_SAMPLING_RATE_IN_HZ # because of the offset
+                    end = (slice_index - 1) / SLICE_SAMPLING_RATE_IN_HZ         # because of the offset
                     completed_notes.append((note_name, start, end))
                     active_notes[key] = 0
             prev_slice = slice

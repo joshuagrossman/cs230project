@@ -19,7 +19,7 @@ MAX_SEARCH_DIST_IN_MS = 600.0
 NOT_FOUND_LOSS = 167.0
 
 # Converts CQT time axis to milliseconds
-MILLISECONDS_PER_SLICE = 1.0 / SLICE_SAMPLING_RATE * 1000
+MILLISECONDS_PER_SLICE = 1.0 / SLICE_SAMPLING_RATE_IN_HZ * 1000
 
 
 def get_prediction(model, cqt, weights_file, cqt_file):

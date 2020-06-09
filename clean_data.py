@@ -18,15 +18,15 @@ def convert_wav_to_cqt(wavPath):
     """
     Converts a WAV file to a CQT representation
     """
-    y, sr = librosa.load(path=wavPath, sr=None, offset=0)
+    y, sr = librosa.load(path=wavPath, sr=WAV_SAMPLING_RATE_IN_HZ, offset=0)
     
-    cqt = np.abs(librosa.cqt(y, sr=sr, n_bins=CONTEXT_WINDOW_ROWS, 
-                           bins_per_octave=BINS_PER_OCTAVE, 
-                           hop_length=HOP_LENGTH, 
+    cqt = np.abs(librosa.cqt(y, sr=sr, n_bins=CONTEXT_WINDOW_ROWS,
+                           bins_per_octave=BINS_PER_OCTAVE,
+                           hop_length=HOP_LENGTH,
                            filter_scale=FILTER_SCALE))
     return cqt
 
-def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=SAMPLE_RATE_IN_HZ):
+def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=SLICE_SAMPLING_RATE_IN_HZ):
     """
     Returns an np array that is a piano roll representation of a midi file, cropping the
     128 note values in MIDI to the 88 notes of a piano keyboard.
