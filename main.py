@@ -47,6 +47,23 @@ if __name__ == '__main__':
                         help='Whether to evaluate the test set')
     args = parser.parse_args()
 
+    # Input validation
+    if not os.path.isdir(args.model_ckpt_dir):
+        if args.resume:
+            raise Exception("Attempting to resume training from nonexistant weights directory: %s" \
+                % args.model_ckpt_dir)
+        else:
+            print("The specified weights directory %s doesn't exist. Creating it now." \
+                % args.model_ckpt_dir)
+            os.system("mkdir %s" % args.model_ckpt_dir)
+    if args.lr <= 0 or args.lr >= 1:
+        raise Exception("Invalid learning rate %f" % args.lr)
+    if args.n_epochs <= 0 or args.n_epochs >= 1000:
+        raise Exception("Invalid number of epochs %f. Expected an integer between 1 - 999." % args.n_epochs)
+    if not os.path.isdir(args.data_dir) \
+        or not any([is_valid_file(file, "h5") for file in os.listdir(args.data_dir)]):
+        raise Exception("Specified data directory is empty or doesn't exist: %s" % args.data_dir)
+
     # Get train/dev/test split
     train_pieces, valid_pieces, test_pieces = get_train_valid_test_split(args.data_dir)
 

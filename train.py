@@ -17,6 +17,8 @@ import math
 import h5py
 import librosa, librosa.display
 import threading
+import copy
+import random
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
@@ -53,8 +55,10 @@ def generator(pieces, batch_size=BATCH_SIZE):
     """
     Yield one batch at a time of inputs to the CNN.
     """
+    randomized_pieces = copy.copy(pieces)
+    random.shuffle(randomized_pieces)
     piece_index = 0
-    piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(pieces[piece_index])
+    piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(randomized_pieces[piece_index])
 
     while True:
         # In this iteration of the loop, yield a single batch of sequences
@@ -64,14 +68,14 @@ def generator(pieces, batch_size=BATCH_SIZE):
         for sequence_index in range(batch_size):
             if slice_index + SEQUENCE_LENGTH_IN_SLICES > piece_slices.shape[0]:
                 # We can't make another full sequence with this piece
-                if piece_index == len(pieces) - 1:
+                if piece_index == len(randomized_pieces) - 1:
                     # We've reached the end of an epoch--don't yield these incomplete batches
                     reached_end_of_dataset = True
                     break
 
                 # Skipping to the next piece
                 piece_index += 1
-                piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(pieces[piece_index])
+                piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(randomized_pieces[piece_index])
 
             # Construct a sequence and add it to the batch
             sequence_slices = piece_slices[slice_index:(slice_index + SEQUENCE_LENGTH_IN_SLICES)]
@@ -93,7 +97,7 @@ def generator(pieces, batch_size=BATCH_SIZE):
         if reached_end_of_dataset:
             # We weren't able to fill out this batch, just reset everything and let the while-loop restart
             piece_index = 0
-            piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(pieces[piece_index])
+            piece_slices, piece_cqt, piece_pianoroll, slice_index = get_data(randomized_pieces[piece_index])
         else:
             yield batch_X, batch_Y
 
