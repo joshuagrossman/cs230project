@@ -18,11 +18,21 @@ def get_data(piece):
     pianoroll = np.array(hf.get("pianoroll"))
     slice_index = 0
 
-    # Change the cqt and pianoroll data to reflect a bunch of scales with no signal noise
-    n_samples = cqt.shape[1]
+    # TODO: Change the cqt and pianoroll data to reflect a bunch of scales with no signal noise
+    # Make sure the number of samples are the same for both CQT and pianoroll
+    n_samples_cqt = cqt.shape[1]
     n_samples_pianoroll = pianoroll.shape[1]
-    if n_samples != n_samples_pianoroll:
-        raise Exception("CQT and pianoroll don't have the same number of samples: %d, %d" % (n_samples, n_samples_pianoroll))
+    if n_samples_cqt > n_samples_pianoroll * 1.1 or n_samples_cqt < n_samples_pianoroll * 0.9:
+        raise Exception("CQT and pianoroll don't have the same number of samples: %d, %d" \
+            % (n_samples_cqt, n_samples_pianoroll))
+
+    # Trim data to be the same number of samples (trailing time is inexact)
+    n_samples = min(n_samples_cqt, n_samples_pianoroll)
+    cqt = cqt[:, :n_samples]
+    pianoroll = pianoroll[:, :n_samples]
+
+    n_slices = (n_samples - CQT_SLICE_OFFSET_IN_PIXELS) // CONTEXT_WINDOW_COLS - 1
+    slices = slices[:n_slices, :]
 
     return slices, cqt, pianoroll, slice_index
 
