@@ -26,7 +26,7 @@ def convert_wav_to_cqt(wavPath):
                            filter_scale=FILTER_SCALE))
     return cqt
 
-def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=SLICE_SAMPLING_RATE_IN_HZ):
+def get_piano_roll_subdivided_by_ms(midi_path, sampling_rate=CQT_SAMPLING_RATE_IN_HZ):
     """
     Returns an np array that is a piano roll representation of a midi file, cropping the
     128 note values in MIDI to the 88 notes of a piano keyboard.
