@@ -32,18 +32,29 @@ def get_train_valid_test_split(data_dir):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Trains a CNN.')
-    parser.add_argument('data_dir', help='Directory of h5 files')
-    parser.add_argument('action', help='What action you want to perform ("train", "test", or "convert")')
-    parser.add_argument('model_ckpt_dir', help='The directory containing the model weights you want to use')
-    parser.add_argument('--lr', type=float, default=LEARNING_RATE, dest='lr')
-    parser.add_argument('--n-epochs', type=int, default=NUM_EPOCHS, dest='n_epochs')
-    parser.add_argument('--resume', action='store_const', const=True, dest='resume',
+    parser.add_argument('data_dir',
+                        help='Directory of h5 files')
+    parser.add_argument('action',
+                        help='What action you want to perform ("train", "test", or "convert")')
+    parser.add_argument('model_ckpt_dir',
+                        help='The directory containing the model weights you want to use')
+    parser.add_argument('--lr',
+                        type=float, default=LEARNING_RATE, dest='lr')
+    parser.add_argument('--n-epochs',
+                        type=int, default=NUM_EPOCHS, dest='n_epochs')
+    parser.add_argument('--h5-file',
+                        type=str, default=None, dest='h5_file')
+    parser.add_argument('--resume',
+                        action='store_const', const=True, dest='resume',
                         help='Resume training from last checkpoint in model_ckpt_dir')
-    parser.add_argument('--quick-train', action='store_const', const=False, dest='quick_train',
+    parser.add_argument('--quick-train',
+                        action='store_const', const=False, dest='quick_train',
                         help='Use only two pieces for training and validation')
-    parser.add_argument('--onsets-only', action='store_const', const=False, dest='onsets_only',
+    parser.add_argument('--onsets-only',
+                        action='store_const', const=False, dest='onsets_only',
                         help='Whether to use onsets_only for testing')
-    parser.add_argument('--test-set', action='store_const', const=False, dest='test_set',
+    parser.add_argument('--test-set',
+                        action='store_const', const=False, dest='test_set',
                         help='Whether to evaluate the test set')
     args = parser.parse_args()
 
@@ -67,6 +78,14 @@ if __name__ == '__main__':
     # Get train/dev/test split
     train_pieces, valid_pieces, test_pieces = get_train_valid_test_split(args.data_dir)
 
+    # Make sure provided filename is valid
+    if args.h5_file not in train_pieces and args.h5_file not in valid_pieces:
+        if args.h5_file in test_pieces:
+            if not args.test_set:
+                raise Exception("Trying to use a file from the test set:", args.h5_file)
+        else:
+            raise Exception("File %s not found." % args.h5_file)
+
     # Command line argument logic
     if args.action == "train":
         if args.quick_train:
@@ -88,11 +107,12 @@ if __name__ == '__main__':
         print("Evaluating...")
         evaluation_set = test_pieces if args.test_set else valid_pieces
         if args.onsets_only:
-            l2 = evaluate.evaluate_onsets(evaluation_set, models_dir=args.model_ckpt_dir)
+            F1 = evaluate.evaluate_onsets(evaluation_set, models_dir=args.model_ckpt_dir)
         else:
-            l2 = evaluate.evaluate_no_onsets(evaluation_set, models_dir=args.model_ckpt_dir)
-        print("L2 score:", l2)
+            F1 = evaluate.evaluate_no_onsets(evaluation_set, models_dir=args.model_ckpt_dir)
+        print("F1 score:", F1)
     elif args.action == "midi":
         print("Transcribing first validation piece to MIDI...")
-        output_file = evaluate.generate_midi(valid_pieces[0], is_WAV=False, models_dir=args.model_ckpt_dir)
+        filename = args.h5_file if args.h5_file else valid_pieces[0]
+        output_file = evaluate.generate_midi(filename, is_WAV=False, models_dir=args.model_ckpt_dir)
         print("Generated MIDI file:", output_file)

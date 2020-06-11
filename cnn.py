@@ -21,8 +21,8 @@ def create_model():
     model.add(TimeDistributed(MaxPooling2D(pool_size=(4, 2), strides=(2, 1))))
     model.add(TimeDistributed(Flatten()))
     model.add(TimeDistributed(Dense(500)))
-    model.add(LSTM(500, input_shape=(SEQUENCE_LENGTH_IN_SLICES, 500), return_sequences=True, recurrent_dropout=DROPOUT_P))
-    model.add(LSTM(200, input_shape=(SEQUENCE_LENGTH_IN_SLICES, 500), return_sequences=True))
+    model.add(Bidirectional(LSTM(500, input_shape=(SEQUENCE_LENGTH_IN_SLICES, 500), return_sequences=True, recurrent_dropout=DROPOUT_P)))
+    model.add(Bidirectional(LSTM(200, input_shape=(SEQUENCE_LENGTH_IN_SLICES, 500), return_sequences=True)))
     model.add(TimeDistributed(Dense(88, activation = "sigmoid")))
 
     return model
